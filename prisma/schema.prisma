@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  SALES_REP
+}
+
+enum LocationStatus {
+  ASSIGNED
+  REACHED_OUT
+  FOLLOW_UP
+  INTERESTED
+  SIGNED
+  INSTALLED
+  DECLINED
+}
+
+enum ContactMode {
+  EMAIL
+  PHONE
+  IN_PERSON
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  email         String    @unique
+  password      String?
+  role          Role      @default(SALES_REP)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  assignedLocations Location[] @relation("AssignedRep")
+  createdLocations  Location[] @relation("CreatedBy")
+}
+
+model Country {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  states    State[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  locations Location[]
+}
+
+model State {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  countryId String   @db.ObjectId
+  country   Country  @relation(fields: [countryId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  locations Location[]
+
+  @@unique([name, countryId])
+}
+
+model Location {
+  id             String         @id @default(auto()) @map("_id") @db.ObjectId
+  eventName      String
+  countryId      String         @db.ObjectId
+  country        Country        @relation(fields: [countryId], references: [id])
+  stateId        String         @db.ObjectId
+  state          State          @relation(fields: [stateId], references: [id])
+  address        String?
+  assignedRepId  String?        @db.ObjectId
+  assignedRep    User?          @relation("AssignedRep", fields: [assignedRepId], references: [id])
+  createdById    String         @db.ObjectId
+  createdBy      User           @relation("CreatedBy", fields: [createdById], references: [id])
+  status         LocationStatus @default(ASSIGNED)
+  contactMode    ContactMode?
+  reachedOutDate DateTime?
+  notes          String?
+  
+  normalizedEventName String
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([normalizedEventName])
+  @@index([status])
+  @@index([assignedRepId])
+}
