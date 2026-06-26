@@ -39,7 +39,7 @@ interface LocationsPageClientProps {
 }
 
 export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
-  const { data, isLoading } = useLocations();
+  const { data } = useLocations();
   const deleteLocation = useDeleteLocation();
   const updateStatus = useUpdateLocationStatus();
   const { requestDelete, ConfirmDeleteDialog } = useConfirmDelete();
@@ -207,9 +207,7 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
 
       <Card>
         <CardContent className="p-0">
-          {isLoading ? (
-            <p className="p-6 text-muted-foreground">Loading locations...</p>
-          ) : locations.length === 0 ? (
+          {locations.length === 0 ? (
             <p className="p-6 text-muted-foreground">No locations found.</p>
           ) : (
             <div className="overflow-x-auto">

@@ -32,9 +32,9 @@ import {
 import { useConfirmDelete } from "@/components/ui/confirm-delete-dialog";
 
 export function TerritoriesPageClient() {
-  const { data: countries = [], isLoading: loadingCountries } = useCountries();
+  const { data: countries = [] } = useCountries();
   const [viewCountryId, setViewCountryId] = useState("");
-  const { data: states = [], isLoading: loadingStates } = useStates(viewCountryId || undefined);
+  const { data: states = [] } = useStates(viewCountryId || undefined);
   const createCountry = useCreateCountry();
   const createState = useCreateState();
   const deleteCountry = useDeleteCountry();
@@ -192,9 +192,7 @@ export function TerritoriesPageClient() {
           <CardTitle className="text-base">Territory Hierarchy</CardTitle>
         </CardHeader>
         <CardContent>
-          {loadingCountries ? (
-            <p className="text-muted-foreground">Loading...</p>
-          ) : countries.length === 0 ? (
+          {countries.length === 0 ? (
             <p className="text-muted-foreground">No countries yet. Add one above.</p>
           ) : (
             <div className="space-y-4">
@@ -235,17 +233,23 @@ export function TerritoriesPageClient() {
                       </Button>
                     </div>
                   </div>
-                  {viewCountryId === country.id && !loadingStates && states.length > 0 && (
-                    <ul className="mt-3 space-y-1 border-t pt-3">
-                      {states.map((state) => (
-                        <li key={state.id} className="flex justify-between text-sm">
-                          <span>{state.name}</span>
-                          <span className="text-muted-foreground">
-                            {state._count?.locations ?? 0} locations
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                  {viewCountryId === country.id && (
+                    states.length > 0 ? (
+                      <ul className="mt-3 space-y-1 border-t pt-3">
+                        {states.map((state) => (
+                          <li key={state.id} className="flex justify-between text-sm">
+                            <span>{state.name}</span>
+                            <span className="text-muted-foreground">
+                              {state._count?.locations ?? 0} locations
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-3 border-t pt-3 text-sm text-muted-foreground">
+                        No states in this country yet.
+                      </p>
+                    )
                   )}
                 </div>
               ))}

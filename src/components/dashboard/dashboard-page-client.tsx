@@ -6,44 +6,43 @@ import { LocationStatus } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Users, Globe, Layers } from "lucide-react";
-import { PageSpinner } from "@/components/loading/page-spinner";
-import { Spinner } from "@/components/ui/spinner";
+import {
+  CuteStat,
+  CuteCount,
+  RecentActivityPlaceholder,
+} from "@/components/ui/cute-placeholder";
 
 interface DashboardPageClientProps {
   userRole: string;
 }
 
 export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
-  const { data, isPending, isFetching } = useDashboard();
+  const { data, isPending } = useDashboard();
   const isAdmin = userRole === "ADMIN" || userRole === "MANAGER";
-  const isInitialLoad = isPending && !data;
-
-  if (isInitialLoad) {
-    return <PageSpinner label="Loading dashboard..." />;
-  }
+  const isFirstLoad = isPending && !data;
 
   const stats = [
     {
       label: "Total Locations",
-      value: data?.totalLocations ?? 0,
+      value: data?.totalLocations,
       icon: MapPin,
       show: true,
     },
     {
       label: "Team Members",
-      value: data?.totalUsers ?? 0,
+      value: data?.totalUsers,
       icon: Users,
       show: isAdmin,
     },
     {
       label: "Countries",
-      value: data?.totalCountries ?? 0,
+      value: data?.totalCountries,
       icon: Globe,
       show: isAdmin,
     },
     {
       label: "States",
-      value: data?.totalStates ?? 0,
+      value: data?.totalStates,
       icon: Layers,
       show: isAdmin,
     },
@@ -51,29 +50,31 @@ export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Overview of your field sales pipeline</p>
-        </div>
-        {isFetching && !isPending && (
-          <Spinner className="mt-1 h-5 w-5 shrink-0 text-primary" label="Refreshing" />
-        )}
+      <div>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">
+          {isFirstLoad ? "Warming up your pipeline…" : "Overview of your field sales pipeline"}
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <Card key={stat.label}>
+            <Card
+              key={stat.label}
+              className={isFirstLoad ? "border-primary/10 bg-accent/20" : undefined}
+            >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   {stat.label}
                 </CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
+                <Icon
+                  className={`h-4 w-4 text-muted-foreground ${isFirstLoad ? "animate-pulse text-primary/60" : ""}`}
+                />
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold">{stat.value}</p>
+                <CuteStat loading={isFirstLoad} value={stat.value} />
               </CardContent>
             </Card>
           );
@@ -92,9 +93,10 @@ export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
                 className="flex items-center justify-between rounded-md border p-3"
               >
                 <Badge className={STATUS_COLORS[status]}>{STATUS_LABELS[status]}</Badge>
-                <span className="text-lg font-semibold">
-                  {data?.statusCounts?.[status] ?? 0}
-                </span>
+                <CuteCount
+                  loading={isFirstLoad}
+                  value={data?.statusCounts?.[status]}
+                />
               </div>
             ))}
           </div>
@@ -106,8 +108,10 @@ export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
           <CardTitle className="text-base">Recent Activity</CardTitle>
         </CardHeader>
         <CardContent>
-          {!data?.recentLocations?.length ? (
-            <p className="text-muted-foreground">No recent locations.</p>
+          {isFirstLoad ? (
+            <RecentActivityPlaceholder />
+          ) : !data?.recentLocations?.length ? (
+            <p className="text-muted-foreground">No recent locations yet — go add one!</p>
           ) : (
             <div className="space-y-3">
               {data.recentLocations.map((loc: {
@@ -120,7 +124,7 @@ export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
               }) => (
                 <div
                   key={loc.id}
-                  className="flex items-center justify-between rounded-md border p-3"
+                  className="flex items-center justify-between rounded-md border p-3 animate-fade-in-up"
                 >
                   <div>
                     <p className="font-medium">{loc.eventName}</p>
