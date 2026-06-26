@@ -20,6 +20,16 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+function isPortaledOverlayTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  return !!(
+    target.closest("[data-radix-select-content]") ||
+    target.closest("[data-radix-popper-content-wrapper]") ||
+    target.closest("[data-radix-menu-content]") ||
+    target.closest("[data-radix-dropdown-menu-content]")
+  );
+}
+
 const DialogContent = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { hideClose?: boolean }
@@ -32,6 +42,15 @@ const DialogContent = React.forwardRef<
         "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-card p-6 shadow-lg duration-200 sm:rounded-lg",
         className
       )}
+      onPointerDownOutside={(e) => {
+        if (isPortaledOverlayTarget(e.target)) e.preventDefault();
+      }}
+      onInteractOutside={(e) => {
+        if (isPortaledOverlayTarget(e.target)) e.preventDefault();
+      }}
+      onFocusOutside={(e) => {
+        if (isPortaledOverlayTarget(e.target)) e.preventDefault();
+      }}
       {...props}
     >
       {children}

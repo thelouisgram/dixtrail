@@ -1,21 +1,14 @@
 import prisma from "@/lib/prisma";
 import { LocationStatus, Role } from "@prisma/client";
 
-export async function getDashboardStats(userId: string, role: Role) {
-  const baseWhere =
-    role === Role.SALES_REP
-      ? { OR: [{ assignedRepId: userId }, { createdById: userId }] }
-      : {};
-
+export async function getDashboardStats(_userId: string, role: Role) {
   const [total, byStatus, recent] = await Promise.all([
-    prisma.location.count({ where: baseWhere }),
+    prisma.location.count(),
     prisma.location.groupBy({
       by: ["status"],
-      where: baseWhere,
       _count: { status: true },
     }),
     prisma.location.findMany({
-      where: baseWhere,
       include: {
         country: true,
         state: true,

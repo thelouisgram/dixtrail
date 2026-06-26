@@ -121,7 +121,7 @@ export function TerritoriesPageClient() {
                   </p>
                 )}
               </div>
-              <Button type="submit" disabled={createCountry.isPending}>
+              <Button type="submit" loading={createCountry.isPending}>
                 Add
               </Button>
             </form>
@@ -176,7 +176,8 @@ export function TerritoriesPageClient() {
                 </div>
                 <Button
                   type="submit"
-                  disabled={createState.isPending || !stateCountryId}
+                  loading={createState.isPending}
+                  disabled={!stateCountryId}
                 >
                   Add
                 </Button>

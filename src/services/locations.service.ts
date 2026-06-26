@@ -22,16 +22,8 @@ async function assertStateInCountry(stateId: string, countryId: string) {
   }
 }
 
-function buildLocationWhere(
-  query: LocationQueryInput,
-  userId: string,
-  role: Role
-) {
+function buildLocationWhere(query: LocationQueryInput) {
   const where: Record<string, unknown> = {};
-
-  if (role === Role.SALES_REP) {
-    where.OR = [{ assignedRepId: userId }, { createdById: userId }];
-  }
 
   if (query.search) {
     const normalized = normalizeEventName(query.search);
@@ -48,10 +40,10 @@ function buildLocationWhere(
 
 export async function getLocations(
   query: LocationQueryInput,
-  userId: string,
-  role: Role
+  _userId: string,
+  _role: Role
 ) {
-  const where = buildLocationWhere(query, userId, role);
+  const where = buildLocationWhere(query);
   const skip = (query.page - 1) * query.limit;
 
   const [locations, total] = await Promise.all([
@@ -76,28 +68,13 @@ export async function getLocations(
   };
 }
 
-export async function searchLocationsByName(
-  query: string,
-  userId: string,
-  role: Role
-) {
+export async function searchLocationsByName(query: string) {
   const normalized = normalizeEventName(query);
   if (!normalized) return [];
 
-  const where = { normalizedEventName: { contains: normalized } };
-
-  if (role === Role.ADMIN || role === Role.MANAGER) {
-    return prisma.location.findMany({
-      where,
-      include: locationInclude,
-      take: 10,
-    });
-  }
-
-  // Sales reps need global duplicate detection but must not see other reps' territory details.
   return prisma.location.findMany({
-    where,
-    select: { id: true, eventName: true },
+    where: { normalizedEventName: { contains: normalized } },
+    include: locationInclude,
     take: 10,
   });
 }
@@ -147,14 +124,6 @@ export async function updateLocation(
 ) {
   const location = await prisma.location.findUnique({ where: { id } });
   if (!location) throw new Error("Location not found");
-
-  if (
-    role === Role.SALES_REP &&
-    location.assignedRepId !== userId &&
-    location.createdById !== userId
-  ) {
-    throw new Error("You can only update your assigned or created locations");
-  }
 
   const countryId = data.countryId ?? location.countryId;
   const stateId = data.stateId ?? location.stateId;

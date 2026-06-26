@@ -65,9 +65,9 @@ export function ConfirmDeleteDialog({
             type="button"
             variant="destructive"
             onClick={handleConfirm}
-            disabled={isPending}
+            loading={isPending}
           >
-            {isPending ? "Deleting..." : confirmLabel}
+            {confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

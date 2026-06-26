@@ -6,17 +6,20 @@ import { LocationStatus } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Users, Globe, Layers } from "lucide-react";
+import { PageSpinner } from "@/components/loading/page-spinner";
+import { Spinner } from "@/components/ui/spinner";
 
 interface DashboardPageClientProps {
   userRole: string;
 }
 
 export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
-  const { data, isLoading } = useDashboard();
+  const { data, isPending, isFetching } = useDashboard();
   const isAdmin = userRole === "ADMIN" || userRole === "MANAGER";
+  const isInitialLoad = isPending && !data;
 
-  if (isLoading) {
-    return <p className="text-muted-foreground">Loading dashboard...</p>;
+  if (isInitialLoad) {
+    return <PageSpinner label="Loading dashboard..." />;
   }
 
   const stats = [
@@ -48,9 +51,14 @@ export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Overview of your field sales pipeline</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">Overview of your field sales pipeline</p>
+        </div>
+        {isFetching && !isPending && (
+          <Spinner className="mt-1 h-5 w-5 shrink-0 text-primary" label="Refreshing" />
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

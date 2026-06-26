@@ -72,8 +72,8 @@ export function LoginForm() {
             )}
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? "Signing in..." : "Sign in"}
+          <Button type="submit" className="w-full" loading={isSubmitting}>
+            Sign in
           </Button>
         </form>
       </CardContent>

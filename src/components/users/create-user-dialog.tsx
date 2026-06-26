@@ -118,8 +118,8 @@ export function CreateUserDialog({ userRole }: CreateUserDialogProps) {
             />
             {errors.role && <p className="text-sm text-destructive">{errors.role.message}</p>}
           </div>
-          <Button type="submit" className="w-full" disabled={isSubmitting || createUser.isPending}>
-            {isSubmitting || createUser.isPending ? "Creating..." : "Create User"}
+          <Button type="submit" className="w-full" loading={isSubmitting || createUser.isPending}>
+            Create User
           </Button>
         </form>
       </DialogContent>

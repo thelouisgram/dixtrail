@@ -147,11 +147,9 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
                 {searchResults.map((loc: Location) => (
                   <div key={loc.id} className="flex items-center justify-between text-sm">
                     <span>{loc.eventName}</span>
-                    {loc.country && loc.state && (
-                      <Badge variant="secondary">
-                        {loc.country.name} / {loc.state.name}
-                      </Badge>
-                    )}
+                    <Badge variant="secondary">
+                      {loc.country.name} / {loc.state.name}
+                    </Badge>
                   </div>
                 ))}
               </div>
@@ -346,17 +344,13 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
                 Back
               </Button>
             )}
-            <Button
-              type="submit"
-              className="flex-1"
-              disabled={isSubmitting || createLocation.isPending || updateLocation.isPending}
-            >
-              {isSubmitting || createLocation.isPending || updateLocation.isPending
-                ? "Saving..."
-                : isEdit
-                  ? "Update Location"
-                  : "Create Location"}
-            </Button>
+          <Button
+            type="submit"
+            className="flex-1"
+            loading={isSubmitting || createLocation.isPending || updateLocation.isPending}
+          >
+            {isEdit ? "Update Location" : "Create Location"}
+          </Button>
           </div>
         </form>
       )}
@@ -374,7 +368,10 @@ export function LocationFormDialog({ userRole, editLocation }: LocationFormDialo
 
   return (
     <Dialog open={locationModalOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         {locationModalOpen && (
           <LocationFormContent
             key={editLocation?.id ?? "new"}
