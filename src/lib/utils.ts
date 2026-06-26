@@ -15,3 +15,11 @@ export function formatStatus(status: string): string {
     .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
     .join(" ");
 }
+
+export function formatRoleLabel(role?: string | null): string {
+  if (!role) return "Team member";
+  return role
+    .split("_")
+    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+    .join(" ");
+}

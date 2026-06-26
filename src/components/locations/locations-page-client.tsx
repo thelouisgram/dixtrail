@@ -31,6 +31,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocationFormDialog } from "./location-form-dialog";
 import { useConfirmDelete } from "@/components/ui/confirm-delete-dialog";
+import { QueryPageError } from "@/components/ui/query-page-error";
 
 import type { Location } from "@/types";
 
@@ -39,7 +40,7 @@ interface LocationsPageClientProps {
 }
 
 export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
-  const { data } = useLocations();
+  const { data, isError, refetch } = useLocations();
   const deleteLocation = useDeleteLocation();
   const updateStatus = useUpdateLocationStatus();
   const { requestDelete, ConfirmDeleteDialog } = useConfirmDelete();
@@ -94,7 +95,8 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <QueryPageError isError={isError} refetch={refetch}>
+      <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Locations & Events</h1>
@@ -322,6 +324,7 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
 
       <LocationFormDialog userRole={userRole} editLocation={editLocation} />
       {ConfirmDeleteDialog}
-    </div>
+      </div>
+    </QueryPageError>
   );
 }

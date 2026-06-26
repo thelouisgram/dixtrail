@@ -12,7 +12,7 @@ import {
   X,
   LogOut,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatRoleLabel } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui-store";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/logo";
@@ -116,8 +116,8 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
 
         <div className="border-t p-4">
           <p className="mb-2 truncate text-sm font-medium">{userName ?? "User"}</p>
-          <p className="mb-3 text-xs text-muted-foreground capitalize">
-            {userRole.toLowerCase().replace("_", " ")}
+          <p className="mb-3 text-xs text-muted-foreground">
+            {formatRoleLabel(userRole)}
           </p>
           <Button
             variant="outline"

@@ -11,13 +11,14 @@ import {
   CuteCount,
   RecentActivityPlaceholder,
 } from "@/components/ui/cute-placeholder";
+import { QueryPageError } from "@/components/ui/query-page-error";
 
 interface DashboardPageClientProps {
   userRole: string;
 }
 
 export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
-  const { data, isPending } = useDashboard();
+  const { data, isPending, isError, refetch } = useDashboard();
   const isAdmin = userRole === "ADMIN" || userRole === "MANAGER";
   const isFirstLoad = isPending && !data;
 
@@ -49,7 +50,8 @@ export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
   ].filter((s) => s.show);
 
   return (
-    <div className="space-y-6">
+    <QueryPageError isError={isError} refetch={refetch}>
+      <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">
@@ -142,6 +144,7 @@ export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </QueryPageError>
   );
 }

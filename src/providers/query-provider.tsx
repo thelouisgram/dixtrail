@@ -3,6 +3,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { Toaster } from "sonner";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { PageErrorFallback } from "@/components/ui/page-error-fallback";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -14,6 +16,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             gcTime: 10 * 60 * 1000,
             refetchOnWindowFocus: false,
             refetchOnReconnect: true,
+            retry: 1,
           },
         },
       })
@@ -21,7 +24,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <ErrorBoundary
+        fallback={(_error, reset) => (
+          <PageErrorFallback onRetry={reset} className="min-h-screen" />
+        )}
+      >
+        {children}
+      </ErrorBoundary>
       <Toaster position="top-right" richColors />
     </QueryClientProvider>
   );

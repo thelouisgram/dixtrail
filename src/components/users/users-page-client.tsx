@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CreateUserDialog } from "@/components/users/create-user-dialog";
 import { useConfirmDelete } from "@/components/ui/confirm-delete-dialog";
 import { UsersTablePlaceholder } from "@/components/ui/cute-placeholder";
+import { QueryPageError } from "@/components/ui/query-page-error";
 import { format } from "date-fns";
 
 interface UsersPageClientProps {
@@ -20,7 +21,7 @@ interface UsersPageClientProps {
 }
 
 export function UsersPageClient({ currentUserId, userRole }: UsersPageClientProps) {
-  const { data: users, isPending } = useUsers();
+  const { data: users, isPending, isError, refetch } = useUsers();
   const { setUserModalOpen } = useUIStore();
   const deleteUser = useDeleteUser();
   const { requestDelete, ConfirmDeleteDialog } = useConfirmDelete();
@@ -45,7 +46,8 @@ export function UsersPageClient({ currentUserId, userRole }: UsersPageClientProp
   }
 
   return (
-    <div className="space-y-6">
+    <QueryPageError isError={isError} refetch={refetch}>
+      <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Users</h1>
@@ -124,6 +126,7 @@ export function UsersPageClient({ currentUserId, userRole }: UsersPageClientProp
 
       <CreateUserDialog userRole={userRole} />
       {ConfirmDeleteDialog}
-    </div>
+      </div>
+    </QueryPageError>
   );
 }

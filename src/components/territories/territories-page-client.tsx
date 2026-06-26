@@ -30,9 +30,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useConfirmDelete } from "@/components/ui/confirm-delete-dialog";
+import { QueryPageError } from "@/components/ui/query-page-error";
 
 export function TerritoriesPageClient() {
-  const { data: countries = [] } = useCountries();
+  const { data: countries = [], isError, refetch } = useCountries();
   const [viewCountryId, setViewCountryId] = useState("");
   const { data: states = [] } = useStates(viewCountryId || undefined);
   const createCountry = useCreateCountry();
@@ -97,7 +98,8 @@ export function TerritoriesPageClient() {
   }
 
   return (
-    <div className="space-y-6">
+    <QueryPageError isError={isError} refetch={refetch}>
+      <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Territories</h1>
         <p className="text-muted-foreground">Manage countries and states for location assignment</p>
@@ -259,6 +261,7 @@ export function TerritoriesPageClient() {
       </Card>
 
       {ConfirmDeleteDialog}
-    </div>
+      </div>
+    </QueryPageError>
   );
 }
