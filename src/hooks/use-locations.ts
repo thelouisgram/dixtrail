@@ -22,7 +22,9 @@ function buildLocationParams(filters: ReturnType<typeof useUIStore.getState>["lo
   if (filters.status) params.set("status", filters.status);
   if (filters.countryId) params.set("countryId", filters.countryId);
   if (filters.stateId) params.set("stateId", filters.stateId);
+  if (filters.cityId) params.set("cityId", filters.cityId);
   if (filters.assignedRepId) params.set("assignedRepId", filters.assignedRepId);
+  if (filters.mineOnly) params.set("mineOnly", "true");
   return params.toString();
 }
 
@@ -124,7 +126,9 @@ export function useCreateLocation() {
           countryId: data.countryId,
           stateId: data.stateId,
           status,
-          contactMode: data.contactMode ?? null,
+          contactModes: data.contactModes ?? [],
+          contactEmail: data.contactEmail ?? null,
+          contactPhone: data.contactPhone ?? null,
           country: { id: data.countryId, name: "…" },
           state: { id: data.stateId, name: "…" },
         };

@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { STATUS_COLORS, STATUS_LABELS } from "@/lib/constants";
 import { LocationStatus } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Users, Globe, Layers } from "lucide-react";
+import { Globe, Layers, MapPin, Users } from "lucide-react";
 import {
   CuteStat,
   CuteCount,
@@ -23,31 +24,37 @@ interface DashboardPageClientProps {
 export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
   const { data, isPending, isError, refetch } = useDashboard();
   const isAdmin = userRole === "ADMIN" || userRole === "MANAGER";
+  const isSalesRep = userRole === "SALES_REP";
   const isFirstLoad = isPending && !data;
+  const myLocationsQuery = isSalesRep ? "?mineOnly=true" : "";
 
   const stats = [
     {
-      label: "Total Locations",
+      label: isSalesRep ? "My Locations" : "Total Locations",
       value: data?.totalLocations,
       icon: MapPin,
+      href: `/dashboard/locations${myLocationsQuery}`,
       show: true,
     },
     {
       label: "Team Members",
       value: data?.totalUsers,
       icon: Users,
+      href: "/dashboard/users",
       show: isAdmin,
     },
     {
       label: "Countries",
       value: data?.totalCountries,
       icon: Globe,
+      href: "/dashboard/territories",
       show: isAdmin,
     },
     {
-      label: "States",
+      label: "Provinces/States",
       value: data?.totalStates,
       icon: Layers,
+      href: "/dashboard/territories",
       show: isAdmin,
     },
   ].filter((s) => s.show);
@@ -57,7 +64,11 @@ export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
       <div className="space-y-6 animate-fade-in">
         <PageHeader
           title="Dashboard"
-          description="Luxe Dispense field sales — locations, outreach, and pipeline at a glance"
+          description={
+            isSalesRep
+              ? "Your assigned locations, outreach, and pipeline at a glance"
+              : "Luxe Dispense field sales — locations, outreach, and pipeline at a glance"
+          }
           loadingDescription="Loading your Luxe Dispense overview…"
           isLoading={isFirstLoad}
         />
@@ -66,48 +77,59 @@ export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
           {stats.map((stat, index) => {
             const Icon = stat.icon;
             return (
-              <Card
-                key={stat.label}
-                className={cn(isFirstLoad && LOADING_SURFACE_CLASS, "animate-fade-in-up")}
-                style={{ animationDelay: `${index * 60}ms` }}
-              >
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    {stat.label}
-                  </CardTitle>
-                  <Icon
-                    className={cn(
-                      "h-4 w-4 text-muted-foreground",
-                      isFirstLoad && "text-primary/60 animate-gentle-pulse"
-                    )}
-                  />
-                </CardHeader>
-                <CardContent>
-                  <CuteStat loading={isFirstLoad} value={stat.value} />
-                </CardContent>
-              </Card>
+              <Link key={stat.label} href={stat.href} className="group block">
+                <Card
+                  className={cn(
+                    isFirstLoad && LOADING_SURFACE_CLASS,
+                    "animate-fade-in-up transition-colors hover:border-primary/30 hover:bg-accent/30"
+                  )}
+                  style={{ animationDelay: `${index * 60}ms` }}
+                >
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground">
+                      {stat.label}
+                    </CardTitle>
+                    <Icon
+                      className={cn(
+                        "h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary",
+                        isFirstLoad && "text-primary/60 animate-gentle-pulse"
+                      )}
+                    />
+                  </CardHeader>
+                  <CardContent>
+                    <CuteStat loading={isFirstLoad} value={stat.value} />
+                  </CardContent>
+                </Card>
+              </Link>
             );
           })}
         </div>
 
         <Card className={cn(isFirstLoad && LOADING_SURFACE_CLASS, "animate-fade-in-up")}>
           <CardHeader>
-            <CardTitle className="text-base">Pipeline by Status</CardTitle>
+            <CardTitle className="text-base">
+              {isSalesRep ? "My Pipeline by Status" : "Pipeline by Status"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {Object.values(LocationStatus).map((status, index) => (
-                <div
+                <Link
                   key={status}
-                  className={cn(
-                    "flex animate-fade-in-up items-center justify-between rounded-md border p-3",
-                    isFirstLoad && "border-dashed border-primary/15 bg-background/50"
-                  )}
-                  style={{ animationDelay: `${index * 40}ms` }}
+                  href={`/dashboard/locations?status=${status}${isSalesRep ? "&mineOnly=true" : ""}`}
+                  className="group block"
                 >
-                  <Badge className={STATUS_COLORS[status]}>{STATUS_LABELS[status]}</Badge>
-                  <CuteCount loading={isFirstLoad} value={data?.statusCounts?.[status]} />
-                </div>
+                  <div
+                    className={cn(
+                      "flex animate-fade-in-up items-center justify-between rounded-md border p-3 transition-colors hover:border-primary/30 hover:bg-accent/20",
+                      isFirstLoad && "border-dashed border-primary/15 bg-background/50"
+                    )}
+                    style={{ animationDelay: `${index * 40}ms` }}
+                  >
+                    <Badge className={STATUS_COLORS[status]}>{STATUS_LABELS[status]}</Badge>
+                    <CuteCount loading={isFirstLoad} value={data?.statusCounts?.[status]} />
+                  </div>
+                </Link>
               ))}
             </div>
           </CardContent>
@@ -115,25 +137,22 @@ export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
 
         <Card className={cn(isFirstLoad && LOADING_SURFACE_CLASS, "animate-fade-in-up")}>
           <CardHeader>
-            <CardTitle className="text-base">Recent Activity</CardTitle>
+            <CardTitle className="text-base">
+              {isSalesRep ? "My Recent Activity" : "Recent Activity"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {isFirstLoad ? (
               <RecentActivityPlaceholder />
             ) : !data?.recentLocations?.length ? (
               <p className="text-muted-foreground animate-fade-in-up">
-                No recent locations yet — go add one!
+                {isSalesRep
+                  ? "No assigned locations yet — check back after you're assigned to one."
+                  : "No recent locations yet — go add one!"}
               </p>
             ) : (
               <div className="space-y-3">
-                {data.recentLocations.map((loc: {
-                  id: string;
-                  eventName: string;
-                  status: LocationStatus;
-                  country: { name: string };
-                  state: { name: string };
-                  assignedRep?: { name: string | null } | null;
-                }, index: number) => (
+                {data.recentLocations.map((loc, index) => (
                   <div
                     key={loc.id}
                     className="flex animate-fade-in-up items-center justify-between rounded-md border p-3"
@@ -143,6 +162,7 @@ export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
                       <p className="font-medium">{loc.eventName}</p>
                       <p className="text-sm text-muted-foreground">
                         {loc.country.name} / {loc.state.name}
+                        {loc.city?.name ? ` / ${loc.city.name}` : ""}
                         {loc.assignedRep?.name && ` · ${loc.assignedRep.name}`}
                       </p>
                     </div>

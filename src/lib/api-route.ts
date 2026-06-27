@@ -27,7 +27,7 @@ export function withAuth(handler: AuthedHandler | AuthedHandlerNoContext) {
   return async (request: NextRequest, context?: RouteContext) => {
     try {
       const session = (await requireAuth()) as AuthedSession;
-      if (context) {
+      if (handler.length >= 3 && context) {
         return await (handler as AuthedHandler)(request, session, context);
       }
       return await (handler as AuthedHandlerNoContext)(request, session);
@@ -43,7 +43,7 @@ export function withRole(roles: Role[], handler: AuthedHandler | AuthedHandlerNo
   return async (request: NextRequest, context?: RouteContext) => {
     try {
       const session = (await requireRole(roles)) as AuthedSession;
-      if (context) {
+      if (handler.length >= 3 && context) {
         return await (handler as AuthedHandler)(request, session, context);
       }
       return await (handler as AuthedHandlerNoContext)(request, session);

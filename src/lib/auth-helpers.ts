@@ -27,6 +27,10 @@ export async function requireAuth() {
     throw new Error("Unauthorized");
   }
 
+  if (!/^[a-f\d]{24}$/i.test(session.user.id)) {
+    throw new Error("Unauthorized");
+  }
+
   const refreshed = await refreshSessionRole(session);
   if (!refreshed) {
     throw new Error("Unauthorized");

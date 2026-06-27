@@ -1,17 +1,38 @@
 import prisma from "@/lib/prisma";
 import { LocationStatus, Role } from "@prisma/client";
+import type { DashboardData, Location } from "@/types";
+import { getSalesRepLocationFilter } from "@/services/locations.service";
 
-export async function getDashboardStats(_userId: string, role: Role) {
+function serializeLocation<T extends {
+  reachedOutDate?: Date | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}>(location: T) {
+  return {
+    ...location,
+    reachedOutDate: location.reachedOutDate?.toISOString() ?? null,
+    createdAt: location.createdAt?.toISOString(),
+    updatedAt: location.updatedAt?.toISOString(),
+  };
+}
+
+export async function getDashboardStats(userId: string, role: Role): Promise<DashboardData> {
+  const scope =
+    role === Role.SALES_REP ? await getSalesRepLocationFilter(userId) : {};
+
   const [total, byStatus, recent] = await Promise.all([
-    prisma.location.count(),
+    prisma.location.count({ where: scope }),
     prisma.location.groupBy({
       by: ["status"],
+      where: scope,
       _count: { status: true },
     }),
     prisma.location.findMany({
+      where: scope,
       include: {
         country: true,
         state: true,
+        city: true,
         assignedRep: { select: { id: true, name: true } },
       },
       orderBy: { updatedAt: "desc" },
@@ -43,7 +64,7 @@ export async function getDashboardStats(_userId: string, role: Role) {
   return {
     totalLocations: total,
     statusCounts,
-    recentLocations: recent,
+    recentLocations: recent.map((loc) => serializeLocation(loc)) as Location[],
     totalUsers,
     totalCountries,
     totalStates,

@@ -11,6 +11,7 @@ import { ROLE_LABELS } from "@/lib/constants";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -42,7 +43,7 @@ function allowedRoles(userRole: string): Role[] {
 }
 
 export function CreateUserDialog({ userRole }: CreateUserDialogProps) {
-  const { userModalOpen, setUserModalOpen } = useUIStore();
+  const { userModalOpen, setUserModalOpen, setAssignCitiesUserId } = useUIStore();
   const createUser = useCreateUser();
 
   const {
@@ -63,10 +64,11 @@ export function CreateUserDialog({ userRole }: CreateUserDialogProps) {
 
   async function onSubmit(data: CreateUserInput) {
     try {
-      await createUser.mutateAsync(data);
+      const created = await createUser.mutateAsync(data);
       toast.success("User created");
       reset(defaultValues);
       setUserModalOpen(false);
+      setAssignCitiesUserId(created.id);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create user");
     }
@@ -74,9 +76,12 @@ export function CreateUserDialog({ userRole }: CreateUserDialogProps) {
 
   return (
     <Dialog open={userModalOpen} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create User</DialogTitle>
+          <DialogDescription>
+            Add a team member, then assign cities from the actions menu.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
@@ -116,7 +121,6 @@ export function CreateUserDialog({ userRole }: CreateUserDialogProps) {
                 </Select>
               )}
             />
-            {errors.role && <p className="text-sm text-destructive">{errors.role.message}</p>}
           </div>
           <Button type="submit" className="w-full" loading={isSubmitting || createUser.isPending}>
             Create User

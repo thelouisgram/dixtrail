@@ -1,11 +1,13 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Country, State } from "@/types";
+import type { Country, State, City } from "@/types";
 import {
   createCountrySchema,
   createStateSchema,
+  createCitySchema,
   type CreateStateInput,
+  type CreateCityInput,
 } from "@/lib/validations";
 
 export function useCountries() {
@@ -149,6 +151,61 @@ export function useCreateState() {
           .sort((a, b) => a.name.localeCompare(b.name))
       );
       queryClient.invalidateQueries({ queryKey: ["countries"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useCities(stateId?: string, options?: { fetchAll?: boolean }) {
+  const fetchAll = options?.fetchAll ?? !stateId;
+  return useQuery({
+    queryKey: ["cities", fetchAll ? "all" : stateId],
+    queryFn: async () => {
+      const url = fetchAll ? "/api/cities" : `/api/cities?stateId=${stateId}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch cities");
+      return res.json() as Promise<City[]>;
+    },
+    enabled: fetchAll || !!stateId,
+  });
+}
+
+export function useCreateCity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: CreateCityInput) => {
+      const parsed = createCitySchema.parse(data);
+      const res = await fetch("/api/cities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to create city");
+      return json as City;
+    },
+    onSuccess: (_created, { stateId }) => {
+      queryClient.invalidateQueries({ queryKey: ["cities", stateId] });
+      queryClient.invalidateQueries({ queryKey: ["cities", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["states"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useDeleteCity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }: { id: string; stateId: string }) => {
+      const res = await fetch(`/api/cities?id=${id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to delete city");
+      return json;
+    },
+    onSuccess: (_data, { stateId }) => {
+      queryClient.invalidateQueries({ queryKey: ["cities", stateId] });
+      queryClient.invalidateQueries({ queryKey: ["cities", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["states"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });

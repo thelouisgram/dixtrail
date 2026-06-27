@@ -10,7 +10,7 @@ import {
   useSearchLocations,
   useUpdateLocation,
 } from "@/hooks/use-locations";
-import { useCountries, useStates } from "@/hooks/use-countries";
+import { useCountries, useStates, useCities } from "@/hooks/use-countries";
 import { useSalesReps } from "@/hooks/use-users";
 import { useUIStore } from "@/stores/ui-store";
 import { STATUS_LABELS, CONTACT_MODE_LABELS } from "@/lib/constants";
@@ -58,10 +58,13 @@ function buildDefaults(editLocation?: Location | null): LocationFormInput {
     eventName: editLocation?.eventName ?? "",
     countryId: editLocation?.countryId ?? "",
     stateId: editLocation?.stateId ?? "",
+    cityId: editLocation?.cityId ?? undefined,
     address: editLocation?.address ?? undefined,
     assignedRepId: editLocation?.assignedRepId ?? undefined,
     status: editLocation?.status ?? LocationStatus.ASSIGNED,
-    contactMode: editLocation?.contactMode ?? null,
+    contactModes: editLocation?.contactModes ?? [],
+    contactEmail: editLocation?.contactEmail ?? "",
+    contactPhone: editLocation?.contactPhone ?? "",
     reachedOutDate: editLocation?.reachedOutDate?.split("T")[0] ?? undefined,
     notes: editLocation?.notes ?? undefined,
   };
@@ -90,7 +93,10 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
   });
 
   const countryId = watch("countryId");
+  const stateId = watch("stateId");
+  const contactModes = watch("contactModes") ?? [];
   const { data: states = [] } = useStates(countryId || undefined);
+  const { data: cities = [] } = useCities(stateId, { fetchAll: false });
   const { data: searchResults = [] } = useSearchLocations(searchQuery);
 
   const isAdmin = userRole === "ADMIN" || userRole === "MANAGER";
@@ -202,6 +208,7 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
                     onValueChange={(v) => {
                       field.onChange(v);
                       setValue("stateId", "");
+                      setValue("cityId", "");
                     }}
                   >
                     <SelectTrigger>
@@ -220,18 +227,21 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
               )}
             </div>
             <div className="space-y-2">
-              <Label>State</Label>
+              <Label>Province/State</Label>
               <Controller
                 name="stateId"
                 control={control}
                 render={({ field }) => (
                   <Select
                     value={field.value}
-                    onValueChange={field.onChange}
+                    onValueChange={(v) => {
+                      field.onChange(v);
+                      setValue("cityId", "");
+                    }}
                     disabled={!countryId}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select state" />
+                      <SelectValue placeholder="Select province/state" />
                     </SelectTrigger>
                     <SelectContent>
                       {states.map((s) => (
@@ -245,6 +255,30 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
                 <p className="text-sm text-destructive">{errors.stateId.message}</p>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>City</Label>
+            <Controller
+              name="cityId"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={field.value || ""}
+                  onValueChange={(v) => field.onChange(v || undefined)}
+                  disabled={!stateId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select city (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cities.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </div>
 
           <div className="space-y-2">
@@ -273,32 +307,65 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
           </div>
 
           <div className="space-y-2">
-            <Label>Mode of Contact</Label>
+            <Label>Mode of Reach Out</Label>
+            <p className="text-xs text-muted-foreground">Select all that apply</p>
             <Controller
-              name="contactMode"
+              name="contactModes"
               control={control}
               render={({ field }) => (
-                <Select
-                  value={field.value ?? "none"}
-                  onValueChange={(v) =>
-                    field.onChange(v === "none" ? null : (v as ContactMode))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select contact mode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Not specified</SelectItem>
-                    {Object.values(ContactMode).map((mode) => (
-                      <SelectItem key={mode} value={mode}>
+                <div className="flex flex-wrap gap-4">
+                  {Object.values(ContactMode).map((mode) => {
+                    const checked = field.value?.includes(mode) ?? false;
+                    return (
+                      <label
+                        key={mode}
+                        className="flex cursor-pointer items-center gap-2 text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          className="size-4 rounded border-input accent-primary"
+                          checked={checked}
+                          onChange={(e) => {
+                            const next = e.target.checked
+                              ? [...(field.value ?? []), mode]
+                              : (field.value ?? []).filter((m) => m !== mode);
+                            field.onChange(next);
+                            if (!e.target.checked && mode === ContactMode.EMAIL) {
+                              setValue("contactEmail", "");
+                            }
+                            if (!e.target.checked && mode === ContactMode.PHONE) {
+                              setValue("contactPhone", "");
+                            }
+                          }}
+                        />
                         {CONTACT_MODE_LABELS[mode]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      </label>
+                    );
+                  })}
+                </div>
               )}
             />
           </div>
+
+          {contactModes.includes(ContactMode.EMAIL) && (
+            <div className="space-y-2">
+              <Label>Contact Email</Label>
+              <Input type="email" placeholder="event@example.com" {...register("contactEmail")} />
+              {errors.contactEmail && (
+                <p className="text-sm text-destructive">{errors.contactEmail.message}</p>
+              )}
+            </div>
+          )}
+
+          {contactModes.includes(ContactMode.PHONE) && (
+            <div className="space-y-2">
+              <Label>Contact Phone</Label>
+              <Input type="tel" placeholder="+1 (555) 000-0000" {...register("contactPhone")} />
+              {errors.contactPhone && (
+                <p className="text-sm text-destructive">{errors.contactPhone.message}</p>
+              )}
+            </div>
+          )}
 
           {isAdmin && (
             <div className="space-y-2">

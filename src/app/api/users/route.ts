@@ -1,12 +1,14 @@
 import { Role } from "@prisma/client";
-import { withAuth, withRole } from "@/lib/api-route";
+import { withRole } from "@/lib/api-route";
 import { jsonOk } from "@/lib/api-response";
-import { createUserSchema } from "@/lib/validations";
+import { createUserSchema, userQuerySchema } from "@/lib/validations";
 import { createUser, getUsers } from "@/services/users.service";
 
-export const GET = withRole([Role.ADMIN, Role.MANAGER], async () => {
-  const users = await getUsers();
-  return jsonOk(users);
+export const GET = withRole([Role.ADMIN, Role.MANAGER], async (request) => {
+  const params = Object.fromEntries(request.nextUrl.searchParams);
+  const query = userQuerySchema.parse(params);
+  const data = await getUsers(query);
+  return jsonOk(data);
 });
 
 export const POST = withRole([Role.ADMIN, Role.MANAGER], async (request, session) => {

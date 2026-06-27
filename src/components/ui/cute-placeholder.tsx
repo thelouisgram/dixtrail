@@ -130,6 +130,9 @@ export function UsersTablePlaceholder() {
           aria-hidden
         >
           <td className="px-4 py-3">
+            <ShimmerBar className="h-5 w-5" />
+          </td>
+          <td className="px-4 py-3">
             <Skeleton className="h-4 w-28" />
           </td>
           <td className="px-4 py-3">
@@ -137,12 +140,6 @@ export function UsersTablePlaceholder() {
           </td>
           <td className="px-4 py-3">
             <Skeleton className="h-6 w-20 rounded-full" />
-          </td>
-          <td className="px-4 py-3">
-            <ShimmerBar className="h-5 w-6" />
-          </td>
-          <td className="px-4 py-3">
-            <ShimmerBar className="h-5 w-6" />
           </td>
           <td className="px-4 py-3">
             <Skeleton className="h-4 w-24" />
@@ -155,7 +152,7 @@ export function UsersTablePlaceholder() {
         </tr>
       ))}
       <tr aria-hidden>
-        <td colSpan={7} className="px-4 py-4 text-center">
+        <td colSpan={6} className="px-4 py-4 text-center">
           <LoadingHint>Rounding up the team…</LoadingHint>
         </td>
       </tr>
@@ -173,6 +170,9 @@ export function LocationsTablePlaceholder() {
           style={staggerStyle(i)}
           aria-hidden
         >
+          <td className="px-4 py-3">
+            <ShimmerBar className="h-5 w-5" />
+          </td>
           <td className="px-4 py-3">
             <Skeleton className="h-4 w-32" />
           </td>
@@ -196,7 +196,7 @@ export function LocationsTablePlaceholder() {
         </tr>
       ))}
       <tr aria-hidden>
-        <td colSpan={6} className="px-4 py-4 text-center">
+        <td colSpan={7} className="px-4 py-4 text-center">
           <LoadingHint>Plotting locations on the map…</LoadingHint>
         </td>
       </tr>

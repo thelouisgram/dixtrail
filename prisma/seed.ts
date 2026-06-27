@@ -27,8 +27,22 @@ async function main() {
   }
 
   const countries = [
-    { name: "United States", states: ["California", "Texas", "New York"] },
-    { name: "Canada", states: ["Ontario", "British Columbia", "Quebec"] },
+    {
+      name: "United States",
+      states: [
+        { name: "California", cities: ["Los Angeles", "San Francisco", "San Diego"] },
+        { name: "Texas", cities: ["Houston", "Dallas", "Austin"] },
+        { name: "New York", cities: ["New York City", "Buffalo", "Albany"] },
+      ],
+    },
+    {
+      name: "Canada",
+      states: [
+        { name: "Ontario", cities: ["Toronto", "Ottawa", "Hamilton"] },
+        { name: "British Columbia", cities: ["Vancouver", "Victoria", "Surrey"] },
+        { name: "Quebec", cities: ["Montreal", "Quebec City", "Laval"] },
+      ],
+    },
   ];
 
   for (const { name, states } of countries) {
@@ -38,16 +52,24 @@ async function main() {
       create: { name },
     });
 
-    for (const stateName of states) {
-      await prisma.state.upsert({
-        where: { name_countryId: { name: stateName, countryId: country.id } },
+    for (const stateEntry of states) {
+      const state = await prisma.state.upsert({
+        where: { name_countryId: { name: stateEntry.name, countryId: country.id } },
         update: {},
-        create: { name: stateName, countryId: country.id },
+        create: { name: stateEntry.name, countryId: country.id },
       });
+
+      for (const cityName of stateEntry.cities) {
+        await prisma.city.upsert({
+          where: { name_stateId: { name: cityName, stateId: state.id } },
+          update: {},
+          create: { name: cityName, stateId: state.id },
+        });
+      }
     }
   }
 
-  console.log("Seeded countries and states");
+  console.log("Seeded countries, provinces/states, and cities");
 }
 
 main()

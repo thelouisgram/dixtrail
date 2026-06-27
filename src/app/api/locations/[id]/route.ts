@@ -20,6 +20,6 @@ export const PATCH = withAuth(async (request: NextRequest, session: AuthedSessio
 
 export const DELETE = withAuth(async (_request: NextRequest, session: AuthedSession, context: RouteContext) => {
   const { id } = await context.params;
-  await deleteLocation(id, session.user.role as Role);
+  await deleteLocation(id, session.user.id, session.user.role as Role);
   return jsonOk({ success: true });
 });
