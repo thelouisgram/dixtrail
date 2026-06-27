@@ -5,20 +5,59 @@ import {
   LocationQueryInput,
   UpdateLocationInput,
 } from "@/lib/validations";
-import { LocationStatus, Role } from "@prisma/client";
+import { ActivityType, LocationStatus, Role } from "@prisma/client";
+import { logActivity } from "@/services/activities.service";
+import { notifyLocationAssignment } from "@/services/notifications.service";
+import { STATUS_LABELS } from "@/lib/constants";
 
 const locationInclude = {
   country: true,
   state: true,
+  city: true,
   assignedRep: { select: { id: true, name: true, email: true } },
   createdBy: { select: { id: true, name: true, email: true } },
 };
 
+export async function getSalesRepLocationFilter(userId: string) {
+  const cityIds = (
+    await prisma.userCity.findMany({
+      where: { userId },
+      select: { cityId: true },
+    })
+  ).map((row) => row.cityId);
+
+  const or: Record<string, unknown>[] = [{ assignedRepId: userId }];
+  if (cityIds.length > 0) {
+    or.push({ cityId: { in: cityIds } });
+  }
+
+  return { OR: or };
+}
+
+function combineWhere(
+  filters: Record<string, unknown>,
+  accessScope: Record<string, unknown> | null
+) {
+  const hasFilters = Object.keys(filters).length > 0;
+  if (!accessScope) return filters;
+  if (!hasFilters) return accessScope;
+  return { AND: [accessScope, filters] };
+}
+
 async function assertStateInCountry(stateId: string, countryId: string) {
   const state = await prisma.state.findUnique({ where: { id: stateId } });
-  if (!state) throw new Error("State not found");
+  if (!state) throw new Error("Province/State not found");
   if (state.countryId !== countryId) {
-    throw new Error("Selected state does not belong to the selected country");
+    throw new Error("Selected province/state does not belong to the selected country");
+  }
+}
+
+async function assertCityInState(cityId: string | null | undefined, stateId: string) {
+  if (!cityId) return;
+  const city = await prisma.city.findUnique({ where: { id: cityId } });
+  if (!city) throw new Error("City not found");
+  if (city.stateId !== stateId) {
+    throw new Error("Selected city does not belong to the selected province/state");
   }
 }
 
@@ -33,6 +72,7 @@ function buildLocationWhere(query: LocationQueryInput) {
   if (query.status) where.status = query.status;
   if (query.countryId) where.countryId = query.countryId;
   if (query.stateId) where.stateId = query.stateId;
+  if (query.cityId) where.cityId = query.cityId;
   if (query.assignedRepId) where.assignedRepId = query.assignedRepId;
 
   return where;
@@ -40,10 +80,15 @@ function buildLocationWhere(query: LocationQueryInput) {
 
 export async function getLocations(
   query: LocationQueryInput,
-  _userId: string,
-  _role: Role
+  userId: string,
+  role: Role
 ) {
-  const where = buildLocationWhere(query);
+  const filters = buildLocationWhere(query);
+  const accessScope =
+    role === Role.SALES_REP && query.mineOnly
+      ? await getSalesRepLocationFilter(userId)
+      : null;
+  const where = combineWhere(filters, accessScope);
   const skip = (query.page - 1) * query.limit;
 
   const [locations, total] = await Promise.all([
@@ -85,6 +130,7 @@ export async function createLocation(
   role: Role
 ) {
   await assertStateInCountry(data.stateId, data.countryId);
+  await assertCityInState(data.cityId, data.stateId);
 
   const normalizedEventName = normalizeEventName(data.eventName);
 
@@ -98,22 +144,48 @@ export async function createLocation(
   const assignedRepId =
     role === Role.SALES_REP ? userId : data.assignedRepId ?? null;
 
-  return prisma.location.create({
+  const location = await prisma.location.create({
     data: {
       eventName: data.eventName,
       normalizedEventName,
       countryId: data.countryId,
       stateId: data.stateId,
+      cityId: data.cityId ?? null,
       address: data.address ?? null,
       assignedRepId,
       createdById: userId,
       status: data.status ?? LocationStatus.ASSIGNED,
-      contactMode: data.contactMode ?? null,
+      contactModes: data.contactModes ?? [],
+      contactEmail: data.contactEmail?.trim() || null,
+      contactPhone: data.contactPhone?.trim() || null,
       reachedOutDate: data.reachedOutDate ? new Date(data.reachedOutDate) : null,
       notes: data.notes ?? null,
     },
     include: locationInclude,
   });
+
+  await logActivity({
+    userId,
+    type: ActivityType.LOCATION_CREATED,
+    locationId: location.id,
+    description: `Created location "${location.eventName}"`,
+  });
+
+  if (assignedRepId && assignedRepId !== userId) {
+    await logActivity({
+      userId: assignedRepId,
+      type: ActivityType.LOCATION_ASSIGNED,
+      locationId: location.id,
+      description: `Assigned to location "${location.eventName}"`,
+    });
+    await notifyLocationAssignment(
+      assignedRepId,
+      location.id,
+      location.eventName
+    );
+  }
+
+  return location;
 }
 
 export async function updateLocation(
@@ -127,10 +199,12 @@ export async function updateLocation(
 
   const countryId = data.countryId ?? location.countryId;
   const stateId = data.stateId ?? location.stateId;
+  const cityId = data.cityId !== undefined ? data.cityId : location.cityId;
 
   if (data.countryId || data.stateId) {
     await assertStateInCountry(stateId, countryId);
   }
+  await assertCityInState(cityId, stateId);
 
   if (data.eventName) {
     const normalizedEventName = normalizeEventName(data.eventName);
@@ -145,10 +219,13 @@ export async function updateLocation(
     normalizedEventName?: string;
     countryId?: string;
     stateId?: string;
+    cityId?: string | null;
     address?: string | null;
     assignedRepId?: string | null;
     status?: LocationStatus;
-    contactMode?: CreateLocationInput["contactMode"];
+    contactModes?: CreateLocationInput["contactModes"];
+    contactEmail?: string | null;
+    contactPhone?: string | null;
     reachedOutDate?: Date | null;
     notes?: string | null;
   } = {};
@@ -159,9 +236,12 @@ export async function updateLocation(
   }
   if (data.countryId !== undefined) updateData.countryId = data.countryId;
   if (data.stateId !== undefined) updateData.stateId = data.stateId;
+  if (data.cityId !== undefined) updateData.cityId = data.cityId;
   if (data.address !== undefined) updateData.address = data.address;
   if (data.status !== undefined) updateData.status = data.status;
-  if (data.contactMode !== undefined) updateData.contactMode = data.contactMode;
+  if (data.contactModes !== undefined) updateData.contactModes = data.contactModes;
+  if (data.contactEmail !== undefined) updateData.contactEmail = data.contactEmail?.trim() || null;
+  if (data.contactPhone !== undefined) updateData.contactPhone = data.contactPhone?.trim() || null;
   if (data.notes !== undefined) updateData.notes = data.notes;
   if (data.reachedOutDate !== undefined) {
     updateData.reachedOutDate = data.reachedOutDate
@@ -173,20 +253,68 @@ export async function updateLocation(
     updateData.assignedRepId = data.assignedRepId;
   }
 
-  return prisma.location.update({
+  const updated = await prisma.location.update({
     where: { id },
     data: updateData,
     include: locationInclude,
   });
+
+  const eventName = updated.eventName;
+
+  if (data.status !== undefined && data.status !== location.status) {
+    await logActivity({
+      userId,
+      type: ActivityType.LOCATION_STATUS_CHANGED,
+      locationId: id,
+      description: `Changed "${eventName}" status to ${STATUS_LABELS[data.status]}`,
+    });
+  } else if (
+    data.assignedRepId !== undefined &&
+    data.assignedRepId !== location.assignedRepId
+  ) {
+    await logActivity({
+      userId,
+      type: ActivityType.LOCATION_ASSIGNED,
+      locationId: id,
+      description: `Updated assignment for "${eventName}"`,
+    });
+    if (data.assignedRepId) {
+      await logActivity({
+        userId: data.assignedRepId,
+        type: ActivityType.LOCATION_ASSIGNED,
+        locationId: id,
+        description: `Assigned to location "${eventName}"`,
+      });
+      if (data.assignedRepId !== userId) {
+        await notifyLocationAssignment(data.assignedRepId, id, eventName);
+      }
+    }
+  } else {
+    await logActivity({
+      userId,
+      type: ActivityType.LOCATION_UPDATED,
+      locationId: id,
+      description: `Updated location "${eventName}"`,
+    });
+  }
+
+  return updated;
 }
 
-export async function deleteLocation(id: string, role: Role) {
+export async function deleteLocation(id: string, userId: string, role: Role) {
   if (role !== Role.ADMIN && role !== Role.MANAGER) {
     throw new Error("Only admins and managers can delete locations");
   }
 
   const location = await prisma.location.findUnique({ where: { id } });
   if (!location) throw new Error("Location not found");
+
+  await logActivity({
+    userId,
+    type: ActivityType.LOCATION_DELETED,
+    locationId: id,
+    description: `Deleted location "${location.eventName}"`,
+  });
 
   return prisma.location.delete({ where: { id } });
 }

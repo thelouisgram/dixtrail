@@ -1,20 +1,174 @@
-import { Role } from "@prisma/client";
+import { ActivityType, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
-import { CreateUserInput } from "@/lib/validations";
+import { CreateUserInput, UpdateUserInput, UserQueryInput } from "@/lib/validations";
+import { getActivitiesForUser } from "@/services/activities.service";
+import { notifyCityAssignment } from "@/services/notifications.service";
 
-export async function getUsers() {
-  return prisma.user.findMany({
+const userListSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  createdAt: true,
+} as const;
+
+function serializeUserRow<T extends { createdAt: Date }>(user: T) {
+  return {
+    ...user,
+    createdAt: user.createdAt.toISOString(),
+  };
+}
+
+async function syncUserCities(userId: string, cityIds: string[]) {
+  const uniqueIds = [...new Set(cityIds)];
+
+  const existing = await prisma.userCity.findMany({
+    where: { userId },
+    select: { cityId: true },
+  });
+  const existingIds = new Set(existing.map((row) => row.cityId));
+
+  if (uniqueIds.length > 0) {
+    const cities = await prisma.city.findMany({
+      where: { id: { in: uniqueIds } },
+      include: { state: { include: { country: true } } },
+    });
+    if (cities.length !== uniqueIds.length) {
+      throw new Error("One or more selected cities are invalid");
+    }
+
+    await prisma.userCity.deleteMany({ where: { userId } });
+
+    if (uniqueIds.length > 0) {
+      await prisma.userCity.createMany({
+        data: uniqueIds.map((cityId) => ({ userId, cityId })),
+      });
+    }
+
+    for (const city of cities) {
+      if (!existingIds.has(city.id)) {
+        await notifyCityAssignment(
+          userId,
+          city.id,
+          city.name,
+          city.state.name,
+          city.state.country.name
+        );
+      }
+    }
+    return;
+  }
+
+  await prisma.userCity.deleteMany({ where: { userId } });
+}
+
+export async function getUsers(query: UserQueryInput) {
+  const search = query.search?.trim();
+  const where = search
+    ? {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { email: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+
+  const skip = (query.page - 1) * query.limit;
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      select: userListSelect,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: query.limit,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return {
+    users: users.map(serializeUserRow),
+    pagination: {
+      page: query.page,
+      limit: query.limit,
+      total,
+      totalPages: Math.ceil(total / query.limit),
+    },
+  };
+}
+
+export async function getUserDetail(id: string) {
+  const user = await prisma.user.findUnique({
+    where: { id },
     select: {
       id: true,
       name: true,
       email: true,
       role: true,
       createdAt: true,
-      _count: { select: { assignedLocations: true, createdLocations: true } },
+      assignedCities: {
+        include: {
+          city: {
+            include: {
+              state: { include: { country: true } },
+            },
+          },
+        },
+      },
+      assignedLocations: {
+        include: {
+          country: true,
+          state: true,
+          city: true,
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 50,
+      },
+      createdLocations: {
+        include: {
+          country: true,
+          state: true,
+          city: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      },
+      _count: {
+        select: {
+          assignedLocations: true,
+          createdLocations: true,
+          assignedCities: true,
+          activities: true,
+        },
+      },
     },
-    orderBy: { createdAt: "desc" },
   });
+
+  if (!user) throw new Error("User not found");
+
+  const activities = await getActivitiesForUser(id);
+
+  return {
+    ...user,
+    createdAt: user.createdAt.toISOString(),
+    assignedLocations: user.assignedLocations.map((loc) => ({
+      ...loc,
+      reachedOutDate: loc.reachedOutDate?.toISOString() ?? null,
+      createdAt: loc.createdAt.toISOString(),
+      updatedAt: loc.updatedAt.toISOString(),
+    })),
+    createdLocations: user.createdLocations.map((loc) => ({
+      ...loc,
+      reachedOutDate: loc.reachedOutDate?.toISOString() ?? null,
+      createdAt: loc.createdAt.toISOString(),
+      updatedAt: loc.updatedAt.toISOString(),
+    })),
+    activities: activities.map((a) => ({
+      ...a,
+      createdAt: a.createdAt.toISOString(),
+    })),
+  };
 }
 
 export async function createUser(data: CreateUserInput, requesterRole: Role) {
@@ -27,25 +181,50 @@ export async function createUser(data: CreateUserInput, requesterRole: Role) {
     }
   }
 
-  const existing = await prisma.user.findUnique({ where: { email: data.email } });
+  const existing = await prisma.user.findUnique({
+    where: { email: data.email.toLowerCase() },
+  });
   if (existing) throw new Error("User with this email already exists");
 
   const hashedPassword = await bcrypt.hash(data.password, 10);
-  return prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       name: data.name,
-      email: data.email,
+      email: data.email.toLowerCase(),
       password: hashedPassword,
       role: data.role,
     },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      createdAt: true,
-    },
+    select: userListSelect,
   });
+
+  if (data.cityIds?.length) {
+    await syncUserCities(user.id, data.cityIds);
+  }
+
+  const created = await prisma.user.findUniqueOrThrow({
+    where: { id: user.id },
+    select: userListSelect,
+  });
+  return serializeUserRow(created);
+}
+
+export async function updateUser(id: string, data: UpdateUserInput, requesterRole: Role) {
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) throw new Error("User not found");
+
+  if (requesterRole === Role.MANAGER && user.role === Role.ADMIN) {
+    throw new Error("Managers cannot update admin accounts");
+  }
+
+  if (data.cityIds !== undefined) {
+    await syncUserCities(id, data.cityIds);
+  }
+
+  const updated = await prisma.user.findUniqueOrThrow({
+    where: { id },
+    select: userListSelect,
+  });
+  return serializeUserRow(updated);
 }
 
 export async function deleteUser(id: string, requesterId: string) {
@@ -72,13 +251,35 @@ export async function deleteUser(id: string, requesterId: string) {
     data: { assignedRepId: null },
   });
 
+  await prisma.userCity.deleteMany({ where: { userId: id } });
+  await prisma.activity.deleteMany({ where: { userId: id } });
+  await prisma.notification.deleteMany({ where: { userId: id } });
+
   return prisma.user.delete({ where: { id } });
 }
 
 export async function getSalesReps() {
   return prisma.user.findMany({
     where: { role: { in: [Role.SALES_REP, Role.MANAGER] } },
-    select: { id: true, name: true, email: true, role: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      assignedCities: {
+        include: {
+          city: {
+            select: {
+              id: true,
+              name: true,
+              stateId: true,
+            },
+          },
+        },
+      },
+    },
     orderBy: { name: "asc" },
   });
 }
+
+export { ActivityType };

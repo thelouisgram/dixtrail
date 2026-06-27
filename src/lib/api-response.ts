@@ -17,8 +17,16 @@ export function handleApiError(error: unknown) {
   if (error instanceof Error) {
     if (error.message === "Unauthorized") return jsonError("Unauthorized", 401);
     if (error.message === "Forbidden") return jsonError("Forbidden", 403);
-    if (process.env.NODE_ENV === "production" && error.name === "PrismaClientKnownRequestError") {
-      return jsonError("Request failed", 400);
+    if (
+      error.name === "PrismaClientInitializationError" ||
+      error.name === "PrismaClientKnownRequestError"
+    ) {
+      const status = process.env.NODE_ENV === "production" ? 503 : 400;
+      const message =
+        process.env.NODE_ENV === "production"
+          ? "Database unavailable"
+          : error.message;
+      return jsonError(message, status);
     }
     return jsonError(error.message, 400);
   }

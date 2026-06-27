@@ -1,4 +1,4 @@
-import { LocationStatus, Role, ContactMode } from "@prisma/client";
+import { LocationStatus, Role, ContactMode, ActivityType, NotificationType } from "@prisma/client";
 
 export type UserRow = {
   id: string;
@@ -6,7 +6,12 @@ export type UserRow = {
   email: string;
   role: Role;
   createdAt: string;
-  _count?: { assignedLocations: number; createdLocations: number };
+  _count?: { assignedLocations: number; createdLocations: number; assignedCities?: number };
+};
+
+export type UsersPage = {
+  users: UserRow[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
 };
 
 export type Rep = {
@@ -14,6 +19,9 @@ export type Rep = {
   name: string | null;
   email: string;
   role: Role;
+  assignedCities?: {
+    city: { id: string; name: string; stateId: string };
+  }[];
 };
 
 export type Country = {
@@ -27,7 +35,19 @@ export type State = {
   name: string;
   countryId: string;
   country?: { id: string; name: string };
-  _count?: { locations: number };
+  _count?: { locations: number; cities?: number };
+};
+
+export type City = {
+  id: string;
+  name: string;
+  stateId: string;
+  state?: {
+    id: string;
+    name: string;
+    country?: { id: string; name: string };
+  };
+  _count?: { locations: number; userAssignments?: number };
 };
 
 export type Location = {
@@ -35,20 +55,60 @@ export type Location = {
   eventName: string;
   countryId: string;
   stateId: string;
+  cityId?: string | null;
   country: { id: string; name: string };
   state: { id: string; name: string };
+  city?: { id: string; name: string } | null;
   address?: string | null;
   assignedRepId?: string | null;
   assignedRep?: { id: string; name: string | null; email?: string } | null;
   createdById?: string;
   createdBy?: { id: string; name: string | null; email?: string } | null;
   status: LocationStatus;
-  contactMode?: ContactMode | null;
+  contactModes?: ContactMode[];
+  contactEmail?: string | null;
+  contactPhone?: string | null;
   reachedOutDate?: string | null;
   notes?: string | null;
   normalizedEventName?: string;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type Activity = {
+  id: string;
+  type: ActivityType;
+  description: string;
+  createdAt: string;
+  location?: {
+    id: string;
+    eventName: string;
+    status: LocationStatus;
+  } | null;
+};
+
+export type UserDetail = {
+  id: string;
+  name: string | null;
+  email: string;
+  role: Role;
+  createdAt: string;
+  assignedCities: {
+    city: {
+      id: string;
+      name: string;
+      state: { id: string; name: string; country: { id: string; name: string } };
+    };
+  }[];
+  assignedLocations: Location[];
+  createdLocations: Location[];
+  activities: Activity[];
+  _count: {
+    assignedLocations: number;
+    createdLocations: number;
+    assignedCities: number;
+    activities: number;
+  };
 };
 
 export type LocationsPage = {
@@ -63,4 +123,19 @@ export type DashboardData = {
   totalUsers: number;
   totalCountries: number;
   totalStates: number;
+};
+
+export type NotificationItem = {
+  id: string;
+  type: NotificationType;
+  message: string;
+  read: boolean;
+  locationId?: string | null;
+  cityId?: string | null;
+  createdAt: string;
+};
+
+export type NotificationsData = {
+  notifications: NotificationItem[];
+  unreadCount: number;
 };

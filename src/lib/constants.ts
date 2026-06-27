@@ -37,3 +37,27 @@ export const CONTACT_MODE_LABELS: Record<ContactMode, string> = {
   PHONE: "Phone",
   IN_PERSON: "In Person",
 };
+
+export function formatContactModes(
+  modes: ContactMode[] | undefined | null,
+  contactEmail?: string | null,
+  contactPhone?: string | null
+): string {
+  if (!modes?.length) return "—";
+  return modes
+    .map((mode) => {
+      const label = CONTACT_MODE_LABELS[mode];
+      if (mode === ContactMode.EMAIL && contactEmail) return `${label} (${contactEmail})`;
+      if (mode === ContactMode.PHONE && contactPhone) return `${label} (${contactPhone})`;
+      return label;
+    })
+    .join(", ");
+}
+
+export const ACTIVITY_LABELS: Record<string, string> = {
+  LOCATION_CREATED: "Created location",
+  LOCATION_UPDATED: "Updated location",
+  LOCATION_STATUS_CHANGED: "Status changed",
+  LOCATION_ASSIGNED: "Assignment changed",
+  LOCATION_DELETED: "Deleted location",
+};

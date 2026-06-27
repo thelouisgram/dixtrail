@@ -23,3 +23,7 @@ export function formatRoleLabel(role?: string | null): string {
     .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
     .join(" ");
 }
+
+export function isValidObjectId(id: string): boolean {
+  return /^[a-f\d]{24}$/i.test(id);
+}
