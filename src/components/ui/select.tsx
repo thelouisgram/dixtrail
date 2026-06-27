@@ -1,9 +1,34 @@
+"use client";
+
 import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
+import { DismissableLayerBranch } from "@radix-ui/react-dismissable-layer";
 import { Check, ChevronDown } from "lucide-react";
+import {
+  notifyNestedOverlayClosed,
+  notifyNestedOverlayOpened,
+} from "@/lib/radix-portals";
 import { cn } from "@/lib/utils";
 
-const Select = SelectPrimitive.Root;
+function Select({
+  onOpenChange,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>) {
+  return (
+    <SelectPrimitive.Root
+      {...props}
+      onOpenChange={(open) => {
+        if (open) {
+          notifyNestedOverlayOpened();
+        } else {
+          notifyNestedOverlayClosed();
+        }
+        onOpenChange?.(open);
+      }}
+    />
+  );
+}
+
 const SelectGroup = SelectPrimitive.Group;
 const SelectValue = SelectPrimitive.Value;
 
@@ -14,7 +39,7 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+      "flex h-10 w-full cursor-pointer items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
       className
     )}
     {...props}
@@ -32,18 +57,21 @@ const SelectContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = "popper", ...props }, ref) => (
   <SelectPrimitive.Portal>
-    <SelectPrimitive.Content
-      ref={ref}
-      className={cn(
-        "relative z-[100] min-w-32 overflow-hidden rounded-md border bg-card text-card-foreground shadow-md",
-        position === "popper" && "data-[side=bottom]:translate-y-1",
-        className
-      )}
-      position={position}
-      {...props}
-    >
-      <SelectPrimitive.Viewport className="p-1">{children}</SelectPrimitive.Viewport>
-    </SelectPrimitive.Content>
+    <DismissableLayerBranch>
+      <SelectPrimitive.Content
+        ref={ref}
+        data-slot="radix-portal-content"
+        className={cn(
+          "relative z-[100] min-w-32 overflow-hidden rounded-md border bg-card text-card-foreground shadow-md",
+          position === "popper" && "data-[side=bottom]:translate-y-1",
+          className
+        )}
+        position={position}
+        {...props}
+      >
+        <SelectPrimitive.Viewport className="p-1">{children}</SelectPrimitive.Viewport>
+      </SelectPrimitive.Content>
+    </DismissableLayerBranch>
   </SelectPrimitive.Portal>
 ));
 SelectContent.displayName = SelectPrimitive.Content.displayName;

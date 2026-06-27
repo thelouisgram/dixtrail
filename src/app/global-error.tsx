@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { PageErrorFallback } from "@/components/ui/page-error-fallback";
+import { appFontClassName } from "@/lib/fonts";
 import "./globals.css";
 
 interface GlobalErrorProps {
@@ -18,8 +19,8 @@ export default function GlobalError({ error, reset, unstable_retry }: GlobalErro
   const retry = unstable_retry ?? reset;
 
   return (
-    <html lang="en">
-      <body className="min-h-full bg-background antialiased">
+    <html lang="en" className={`${appFontClassName} antialiased`}>
+      <body className="min-h-full bg-background font-sans">
         <PageErrorFallback onRetry={retry} className="min-h-screen" />
       </body>
     </html>

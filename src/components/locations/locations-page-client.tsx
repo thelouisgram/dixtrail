@@ -32,6 +32,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocationFormDialog } from "./location-form-dialog";
 import { useConfirmDelete } from "@/components/ui/confirm-delete-dialog";
 import { QueryPageError } from "@/components/ui/query-page-error";
+import {
+  LOADING_SURFACE_CLASS,
+  LocationsTablePlaceholder,
+} from "@/components/ui/cute-placeholder";
+import { PageHeader } from "@/components/ui/page-header";
+import { cn } from "@/lib/utils";
 
 import type { Location } from "@/types";
 
@@ -40,7 +46,7 @@ interface LocationsPageClientProps {
 }
 
 export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
-  const { data, isError, refetch } = useLocations();
+  const { data, isError, refetch, isPending } = useLocations();
   const deleteLocation = useDeleteLocation();
   const updateStatus = useUpdateLocationStatus();
   const { requestDelete, ConfirmDeleteDialog } = useConfirmDelete();
@@ -63,6 +69,7 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
     : null;
 
   const isAdmin = userRole === "ADMIN" || userRole === "MANAGER";
+  const isFirstLoad = isPending && data === undefined;
 
   function openEdit(id: string) {
     setSelectedLocationId(id);
@@ -96,24 +103,26 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
 
   return (
     <QueryPageError isError={isError} refetch={refetch}>
-      <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Locations & Events</h1>
-          <p className="text-muted-foreground">Manage field sales locations and track progress</p>
-        </div>
-        <Button
-          onClick={() => {
-            setSelectedLocationId(null);
-            setLocationModalOpen(true);
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Location
-        </Button>
-      </div>
+      <div className="space-y-6 animate-fade-in">
+        <PageHeader
+          title="Locations & Events"
+          description="Manage field sales locations and track progress"
+          loadingDescription="Plotting locations on the map…"
+          isLoading={isFirstLoad}
+          action={
+            <Button
+              onClick={() => {
+                setSelectedLocationId(null);
+                setLocationModalOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Location
+            </Button>
+          }
+        />
 
-      <Card>
+      <Card className={cn(isFirstLoad && LOADING_SURFACE_CLASS, "animate-fade-in-up")}>
         <CardHeader>
           <CardTitle className="text-base">Filters</CardTitle>
         </CardHeader>
@@ -207,9 +216,27 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className={cn(isFirstLoad && LOADING_SURFACE_CLASS, "animate-fade-in-up")}>
         <CardContent className="p-0">
-          {locations.length === 0 ? (
+          {isFirstLoad ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-4 py-3 text-left font-medium">Event</th>
+                    <th className="px-4 py-3 text-left font-medium">Territory</th>
+                    <th className="px-4 py-3 text-left font-medium">Status</th>
+                    <th className="px-4 py-3 text-left font-medium">Contact</th>
+                    <th className="px-4 py-3 text-left font-medium">Assigned Rep</th>
+                    <th className="px-4 py-3 text-right font-medium w-15">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <LocationsTablePlaceholder />
+                </tbody>
+              </table>
+            </div>
+          ) : locations.length === 0 ? (
             <p className="p-6 text-muted-foreground">No locations found.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -225,8 +252,12 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {locations.map((loc) => (
-                    <tr key={loc.id} className="border-b hover:bg-muted/30">
+                  {locations.map((loc, index) => (
+                    <tr
+                      key={loc.id}
+                      className="animate-fade-in-up border-b hover:bg-muted/30"
+                      style={{ animationDelay: `${index * 40}ms` }}
+                    >
                       <td className="px-4 py-3 font-medium">{loc.eventName}</td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {loc.country.name} / {loc.state.name}

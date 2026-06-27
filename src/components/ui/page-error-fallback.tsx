@@ -1,9 +1,12 @@
 "use client";
 
-import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
+import { ArrowLeft, MapPinOff, RefreshCw } from "lucide-react";
 import Link from "next/link";
+import { Logo } from "@/components/brand/logo";
+import { LogoIcon } from "@/components/brand/logo-icon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { LOADING_SURFACE_CLASS } from "@/components/ui/cute-placeholder";
 import { cn } from "@/lib/utils";
 
 interface PageErrorFallbackProps {
@@ -36,23 +39,41 @@ export function PageErrorFallback({
   return (
     <div
       className={cn(
-        "flex items-center justify-center",
+        "flex animate-fade-in items-center justify-center",
         compact ? "p-4" : "min-h-[50vh] p-6",
         className
       )}
       role="alert"
     >
-      <Card className={cn("w-full border-destructive/20", compact ? "max-w-sm" : "max-w-md")}>
+      <Card
+        className={cn(
+          "w-full animate-fade-in-up border border-dashed border-primary/20 bg-accent/30 shadow-sm",
+          LOADING_SURFACE_CLASS,
+          compact ? "max-w-sm" : "max-w-md"
+        )}
+      >
         <CardContent className="flex flex-col items-center gap-4 pt-6 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-            <AlertCircle className="h-6 w-6 text-destructive" aria-hidden />
+          {!compact ? (
+            <Logo href="/dashboard" size="sm" className="mb-1" />
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+              <LogoIcon className="h-6 w-6" />
+            </div>
+          )}
+
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-background/80 ring-1 ring-primary/15">
+            <MapPinOff className="h-5 w-5 text-primary/80 animate-gentle-pulse" aria-hidden />
           </div>
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold">This page couldn&apos;t load</h2>
+
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-semibold tracking-tight">
+              This page couldn&apos;t load
+            </h2>
             <p className="text-sm text-muted-foreground">
-              Something went wrong. Reload to try again, or go back to where you were.
+              Something went off-trail. Reload to try again, or head back to where you were.
             </p>
           </div>
+
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
             <Button onClick={handleRetry} className="w-full sm:w-auto">
               <RefreshCw className="mr-2 h-4 w-4" />
@@ -63,10 +84,11 @@ export function PageErrorFallback({
               Go back
             </Button>
           </div>
+
           {!compact && (
             <Link
               href="/dashboard"
-              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
             >
               Return to dashboard
             </Link>

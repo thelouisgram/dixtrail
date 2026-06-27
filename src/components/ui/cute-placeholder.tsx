@@ -1,7 +1,17 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function BouncingDots({ className }: { className?: string }) {
+/** Shared accent surface used while data is loading. */
+export const LOADING_SURFACE_CLASS = "border-primary/10 bg-accent/20";
+
+export function BouncingDots({
+  className,
+  inverted = false,
+}: {
+  className?: string;
+  inverted?: boolean;
+}) {
   return (
     <span
       className={cn("inline-flex items-end gap-1 py-1", className)}
@@ -11,8 +21,11 @@ export function BouncingDots({ className }: { className?: string }) {
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="inline-block h-2 w-2 rounded-full bg-primary/70 animate-bounce"
-          style={{ animationDelay: `${i * 120}ms`, animationDuration: "0.9s" }}
+          className={cn(
+            "inline-block h-2 w-2 rounded-full animate-soft-bounce",
+            inverted ? "bg-primary-foreground/85" : "bg-primary/70"
+          )}
+          style={{ animationDelay: `${i * 120}ms` }}
         />
       ))}
     </span>
@@ -23,7 +36,7 @@ export function ShimmerBar({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "relative inline-block overflow-hidden rounded-md bg-muted",
+        "relative inline-block overflow-hidden rounded-md bg-muted/80",
         className
       )}
       aria-hidden
@@ -33,13 +46,24 @@ export function ShimmerBar({ className }: { className?: string }) {
   );
 }
 
+export function LoadingHint({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <p className={cn("text-center text-xs text-muted-foreground animate-gentle-pulse", className)}>
+      {children}
+    </p>
+  );
+}
+
+function staggerStyle(index: number, step = 80) {
+  return { animationDelay: `${index * step}ms` };
+}
+
 interface CuteStatProps {
   loading: boolean;
   value?: number;
   className?: string;
 }
 
-/** Stat number with shimmer dots while loading, soft pop-in when ready. */
 export function CuteStat({ loading, value, className }: CuteStatProps) {
   if (loading) {
     return (
@@ -62,7 +86,6 @@ interface CuteCountProps {
   className?: string;
 }
 
-/** Smaller inline count for badges / pipeline rows. */
 export function CuteCount({ loading, value, className }: CuteCountProps) {
   if (loading) {
     return <ShimmerBar className={cn("h-6 w-8", className)} />;
@@ -81,8 +104,8 @@ export function RecentActivityPlaceholder() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="flex items-center justify-between rounded-md border border-dashed border-primary/20 bg-accent/30 p-3"
-          style={{ animationDelay: `${i * 100}ms` }}
+          className="flex animate-fade-in-up items-center justify-between rounded-md border border-dashed border-primary/20 bg-accent/30 p-3"
+          style={staggerStyle(i, 100)}
         >
           <div className="space-y-2">
             <Skeleton className="h-4 w-36" />
@@ -91,9 +114,7 @@ export function RecentActivityPlaceholder() {
           <Skeleton className="h-6 w-20 rounded-full" />
         </div>
       ))}
-      <p className="text-center text-xs text-muted-foreground animate-pulse">
-        Picking up the latest trail markers…
-      </p>
+      <LoadingHint>Picking up the latest trail markers…</LoadingHint>
     </div>
   );
 }
@@ -104,8 +125,8 @@ export function UsersTablePlaceholder() {
       {[0, 1, 2, 3, 4].map((i) => (
         <tr
           key={i}
-          className="border-b bg-accent/10"
-          style={{ animationDelay: `${i * 80}ms` }}
+          className="animate-fade-in-up border-b bg-accent/10"
+          style={staggerStyle(i)}
           aria-hidden
         >
           <td className="px-4 py-3">
@@ -135,11 +156,76 @@ export function UsersTablePlaceholder() {
       ))}
       <tr aria-hidden>
         <td colSpan={7} className="px-4 py-4 text-center">
-          <p className="text-xs text-muted-foreground animate-pulse">
-            Rounding up the team…
-          </p>
+          <LoadingHint>Rounding up the team…</LoadingHint>
         </td>
       </tr>
     </>
+  );
+}
+
+export function LocationsTablePlaceholder() {
+  return (
+    <>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <tr
+          key={i}
+          className="animate-fade-in-up border-b bg-accent/10"
+          style={staggerStyle(i)}
+          aria-hidden
+        >
+          <td className="px-4 py-3">
+            <Skeleton className="h-4 w-32" />
+          </td>
+          <td className="px-4 py-3">
+            <Skeleton className="h-4 w-36" />
+          </td>
+          <td className="px-4 py-3">
+            <Skeleton className="h-8 w-28 rounded-md" />
+          </td>
+          <td className="px-4 py-3">
+            <Skeleton className="h-4 w-16" />
+          </td>
+          <td className="px-4 py-3">
+            <Skeleton className="h-4 w-24" />
+          </td>
+          <td className="px-4 py-3">
+            <div className="flex justify-end">
+              <Skeleton className="h-8 w-8 rounded-md" />
+            </div>
+          </td>
+        </tr>
+      ))}
+      <tr aria-hidden>
+        <td colSpan={6} className="px-4 py-4 text-center">
+          <LoadingHint>Plotting locations on the map…</LoadingHint>
+        </td>
+      </tr>
+    </>
+  );
+}
+
+export function TerritoriesListPlaceholder() {
+  return (
+    <div className="space-y-4" aria-hidden>
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className={cn(
+            "animate-fade-in-up rounded-md border border-dashed border-primary/20 p-4",
+            LOADING_SURFACE_CLASS
+          )}
+          style={staggerStyle(i, 100)}
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-3 w-44" />
+            </div>
+            <Skeleton className="h-8 w-20 rounded-md" />
+          </div>
+        </div>
+      ))}
+      <LoadingHint>Mapping out territories…</LoadingHint>
+    </div>
   );
 }

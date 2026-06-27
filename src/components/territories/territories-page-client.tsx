@@ -31,9 +31,14 @@ import {
 } from "@/components/ui/select";
 import { useConfirmDelete } from "@/components/ui/confirm-delete-dialog";
 import { QueryPageError } from "@/components/ui/query-page-error";
+import { LOADING_SURFACE_CLASS, TerritoriesListPlaceholder } from "@/components/ui/cute-placeholder";
+import { PageHeader } from "@/components/ui/page-header";
+import { cn } from "@/lib/utils";
 
 export function TerritoriesPageClient() {
-  const { data: countries = [], isError, refetch } = useCountries();
+  const { data: countries, isError, refetch, isPending } = useCountries();
+  const countryList = countries ?? [];
+  const isFirstLoad = isPending && countries === undefined;
   const [viewCountryId, setViewCountryId] = useState("");
   const { data: states = [] } = useStates(viewCountryId || undefined);
   const createCountry = useCreateCountry();
@@ -99,13 +104,15 @@ export function TerritoriesPageClient() {
 
   return (
     <QueryPageError isError={isError} refetch={refetch}>
-      <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Territories</h1>
-        <p className="text-muted-foreground">Manage countries and states for location assignment</p>
-      </div>
+      <div className="space-y-6 animate-fade-in">
+        <PageHeader
+          title="Territories"
+          description="Manage countries and states for location assignment"
+          loadingDescription="Mapping out territories…"
+          isLoading={isFirstLoad}
+        />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid animate-fade-in-up gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Add Country</CardTitle>
@@ -150,7 +157,7 @@ export function TerritoriesPageClient() {
                         <SelectValue placeholder="Select country" />
                       </SelectTrigger>
                       <SelectContent>
-                        {countries.map((c) => (
+                        {countryList.map((c) => (
                           <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -189,17 +196,23 @@ export function TerritoriesPageClient() {
         </Card>
       </div>
 
-      <Card>
+      <Card className={cn(isFirstLoad && LOADING_SURFACE_CLASS, "animate-fade-in-up")}>
         <CardHeader>
           <CardTitle className="text-base">Territory Hierarchy</CardTitle>
         </CardHeader>
         <CardContent>
-          {countries.length === 0 ? (
+          {isFirstLoad ? (
+            <TerritoriesListPlaceholder />
+          ) : countryList.length === 0 ? (
             <p className="text-muted-foreground">No countries yet. Add one above.</p>
           ) : (
             <div className="space-y-4">
-              {countries.map((country) => (
-                <div key={country.id} className="rounded-md border p-4">
+              {countryList.map((country, index) => (
+                <div
+                  key={country.id}
+                  className="animate-fade-in-up rounded-md border p-4"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <h3 className="font-semibold">{country.name}</h3>

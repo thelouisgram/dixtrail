@@ -2,9 +2,32 @@
 
 import * as React from "react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
+import { DismissableLayerBranch } from "@radix-ui/react-dismissable-layer";
+import {
+  notifyNestedOverlayClosed,
+  notifyNestedOverlayOpened,
+} from "@/lib/radix-portals";
 import { cn } from "@/lib/utils";
 
-const DropdownMenu = DropdownMenuPrimitive.Root;
+function DropdownMenu({
+  onOpenChange,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root>) {
+  return (
+    <DropdownMenuPrimitive.Root
+      {...props}
+      onOpenChange={(open) => {
+        if (open) {
+          notifyNestedOverlayOpened();
+        } else {
+          notifyNestedOverlayClosed();
+        }
+        onOpenChange?.(open);
+      }}
+    />
+  );
+}
+
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 const DropdownMenuPortal = DropdownMenuPrimitive.Portal;
@@ -14,15 +37,18 @@ const DropdownMenuContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
 >(({ className, sideOffset = 4, ...props }, ref) => (
   <DropdownMenuPrimitive.Portal>
-    <DropdownMenuPrimitive.Content
-      ref={ref}
-      sideOffset={sideOffset}
-      className={cn(
-        "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-card p-1 text-card-foreground shadow-md",
-        className
-      )}
-      {...props}
-    />
+    <DismissableLayerBranch>
+      <DropdownMenuPrimitive.Content
+        ref={ref}
+        data-slot="radix-portal-content"
+        sideOffset={sideOffset}
+        className={cn(
+          "z-[100] min-w-[8rem] overflow-hidden rounded-md border bg-card p-1 text-card-foreground shadow-md",
+          className
+        )}
+        {...props}
+      />
+    </DismissableLayerBranch>
   </DropdownMenuPrimitive.Portal>
 ));
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
