@@ -18,7 +18,10 @@
   --border: #e2e8f0;
   --input: #e2e8f0;
   --ring: #2563eb;
-  --radius: 0.5rem;
+  --radius: 0.625rem;
+  --shadow-tint: 37 99 235;
+  --shadow-soft: 139 92 246;
+  --shadow-neutral: 100 116 139;
 }
 
 @theme inline {
@@ -44,6 +47,14 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --shadow-2xs: 0 1px 2px 0 rgb(var(--shadow-tint) / 0.05);
+  --shadow-xs: 0 1px 3px 0 rgb(var(--shadow-tint) / 0.07), 0 1px 2px rgb(var(--shadow-neutral) / 0.05);
+  --shadow-sm: 0 2px 8px -2px rgb(var(--shadow-tint) / 0.1), 0 2px 4px -2px rgb(var(--shadow-neutral) / 0.06);
+  --shadow-md: 0 6px 16px -4px rgb(var(--shadow-tint) / 0.12), 0 4px 8px -4px rgb(var(--shadow-soft) / 0.08);
+  --shadow-lg: 0 12px 28px -6px rgb(var(--shadow-tint) / 0.14), 0 6px 14px -6px rgb(var(--shadow-neutral) / 0.08);
+  --shadow-xl: 0 20px 40px -8px rgb(var(--shadow-tint) / 0.16), 0 10px 24px -8px rgb(var(--shadow-soft) / 0.1);
+  --shadow-2xl: 0 28px 56px -12px rgb(var(--shadow-tint) / 0.18), 0 16px 32px -10px rgb(var(--shadow-neutral) / 0.1);
 }
 
 * {
@@ -51,7 +62,9 @@
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgb(var(--shadow-tint) / 0.08), transparent),
+    var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
@@ -171,4 +184,22 @@ input[type="reset"]:disabled {
 
 .animate-scale-pop {
   animation: scale-pop 0.35s ease-out both;
+}
+
+.shadow-cute-button {
+  box-shadow:
+    0 2px 0 0 rgb(var(--shadow-tint) / 0.22),
+    0 4px 14px -2px rgb(var(--shadow-tint) / 0.28);
+}
+
+.shadow-cute-button:active:not(:disabled) {
+  box-shadow:
+    0 1px 0 0 rgb(var(--shadow-tint) / 0.2),
+    0 2px 8px -2px rgb(var(--shadow-tint) / 0.22);
+}
+
+.shadow-cute-success {
+  box-shadow:
+    0 2px 0 0 rgb(5 150 105 / 0.25),
+    0 4px 14px -2px rgb(5 150 105 / 0.3);
 }

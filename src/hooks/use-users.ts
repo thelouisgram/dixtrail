@@ -86,11 +86,10 @@ export function useUserDetail(userId: string | null) {
   });
 }
 
-export function useUpdateUserCities() {
+export function useUpdateUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, cityIds }: { id: string; cityIds: string[] }) => {
-      const data: UpdateUserInput = { cityIds };
+    mutationFn: async ({ id, data }: { id: string; data: UpdateUserInput }) => {
       const res = await fetch(`/api/users/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -105,6 +104,16 @@ export function useUpdateUserCities() {
       queryClient.invalidateQueries({ queryKey: ["users", id] });
       queryClient.invalidateQueries({ queryKey: ["reps"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useUpdateUserCities() {
+  const updateUser = useUpdateUser();
+  return useMutation({
+    mutationFn: async ({ id, cityIds }: { id: string; cityIds: string[] }) => {
+      return updateUser.mutateAsync({ id, data: { cityIds } });
     },
   });
 }

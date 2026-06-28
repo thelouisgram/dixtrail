@@ -69,6 +69,7 @@ export type Location = {
   contactEmail?: string | null;
   contactPhone?: string | null;
   reachedOutDate?: string | null;
+  followUpDate?: string | null;
   notes?: string | null;
   normalizedEventName?: string;
   createdAt?: string;

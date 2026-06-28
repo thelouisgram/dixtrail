@@ -8,12 +8,12 @@ export const authConfig = {
   session: { strategy: 'jwt' },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user;
+      const hasValidSession = !!(auth?.user?.id && auth?.user?.role);
       const isOnDashboard = nextUrl.pathname.startsWith('/dashboard');
       if (isOnDashboard) {
-        if (isLoggedIn) return true;
+        if (hasValidSession) return true;
         return false; // Redirect unauthenticated users to login page
-      } else if (isLoggedIn && (nextUrl.pathname === '/login' || nextUrl.pathname === '/')) {
+      } else if (hasValidSession && (nextUrl.pathname === '/login' || nextUrl.pathname === '/')) {
         return Response.redirect(new URL('/dashboard', nextUrl));
       }
       return true;
@@ -26,10 +26,11 @@ export const authConfig = {
       return token;
     },
     session({ session, token }) {
-      if (token && session.user) {
-        session.user.role = token.role as string;
-        session.user.id = token.id as string;
+      if (!token?.id || !token?.role || !session.user) {
+        return session;
       }
+      session.user.role = token.role as string;
+      session.user.id = token.id as string;
       return session;
     },
   },

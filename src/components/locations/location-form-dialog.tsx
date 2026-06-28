@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -20,8 +20,10 @@ import {
   toCreateLocationPayload,
   toUpdateLocationPayload,
 } from "@/lib/validations";
-import { normalizeEventName } from "@/lib/utils";
+import { normalizeEventName, cn } from "@/lib/utils";
+import { todayDateInput } from "@/lib/date-utils";
 import type { Location } from "@/types";
+import type { City } from "@/types";
 import {
   Dialog,
   DialogContent,
@@ -31,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -41,6 +44,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
+
+function toCityOptions(cities: City[]): SearchableSelectOption[] {
+  return cities.map((city) => ({
+    value: city.id,
+    label: city.name,
+    description: city.state
+      ? `${city.state.name}, ${city.state.country?.name ?? ""}`
+      : undefined,
+  }));
+}
 
 interface LocationFormDialogProps {
   userRole: string;
@@ -58,7 +72,7 @@ function buildDefaults(editLocation?: Location | null): LocationFormInput {
     eventName: editLocation?.eventName ?? "",
     countryId: editLocation?.countryId ?? "",
     stateId: editLocation?.stateId ?? "",
-    cityId: editLocation?.cityId ?? undefined,
+    cityId: editLocation?.cityId ?? "",
     address: editLocation?.address ?? undefined,
     assignedRepId: editLocation?.assignedRepId ?? undefined,
     status: editLocation?.status ?? LocationStatus.ASSIGNED,
@@ -66,6 +80,7 @@ function buildDefaults(editLocation?: Location | null): LocationFormInput {
     contactEmail: editLocation?.contactEmail ?? "",
     contactPhone: editLocation?.contactPhone ?? "",
     reachedOutDate: editLocation?.reachedOutDate?.split("T")[0] ?? undefined,
+    followUpDate: editLocation?.followUpDate?.split("T")[0] ?? undefined,
     notes: editLocation?.notes ?? undefined,
   };
 }
@@ -93,11 +108,31 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
   });
 
   const countryId = watch("countryId");
-  const stateId = watch("stateId");
+  const cityId = watch("cityId");
+  const status = watch("status");
   const contactModes = watch("contactModes") ?? [];
   const { data: states = [] } = useStates(countryId || undefined);
-  const { data: cities = [] } = useCities(stateId, { fetchAll: false });
+  const { data: allCities = [] } = useCities(undefined, { fetchAll: true });
+  const cityOptions = useMemo(() => toCityOptions(allCities), [allCities]);
   const { data: searchResults = [] } = useSearchLocations(searchQuery);
+
+  function applyCitySelection(selectedCityId: string) {
+    const city = allCities.find((item) => item.id === selectedCityId);
+    if (!city) return;
+
+    setValue("cityId", city.id, { shouldValidate: true });
+    setValue("stateId", city.stateId, { shouldValidate: true });
+    const nextCountryId = city.state?.country?.id;
+    if (nextCountryId) {
+      setValue("countryId", nextCountryId, { shouldValidate: true });
+    }
+  }
+
+  useEffect(() => {
+    if (status !== LocationStatus.FOLLOW_UP) {
+      setValue("followUpDate", undefined);
+    }
+  }, [status, setValue]);
 
   const isAdmin = userRole === "ADMIN" || userRole === "MANAGER";
 
@@ -139,7 +174,7 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Search Event Name</Label>
-            <Input
+            <SearchInput
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Type event name to search..."
@@ -154,7 +189,7 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
                   <div key={loc.id} className="flex items-center justify-between text-sm">
                     <span>{loc.eventName}</span>
                     <Badge variant="secondary">
-                      {loc.country.name} / {loc.state.name}
+                      {loc.city?.name ?? `${loc.state.name}, ${loc.country.name}`}
                     </Badge>
                   </div>
                 ))}
@@ -185,8 +220,9 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
       {(isEdit || step === "form") && (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label>Event Name</Label>
+            <Label htmlFor="eventName">Event Name</Label>
             <Input
+              id="eventName"
               {...register("eventName")}
               readOnly={!isEdit}
               className={!isEdit ? "bg-muted" : undefined}
@@ -196,114 +232,150 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
+            <p className="text-sm font-medium">Location</p>
+
             <div className="space-y-2">
-              <Label>Country</Label>
+              <Label>City</Label>
               <Controller
-                name="countryId"
+                name="cityId"
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    onOptionSelect={(option) => applyCitySelection(option.value)}
+                    invalid={!!errors.cityId}
+                    placeholder="Search city"
+                    searchPlaceholder="Search cities…"
+                    emptyMessage="No cities match your search."
+                    options={cityOptions}
+                  />
+                )}
+              />
+              {errors.cityId && (
+                <p className="text-sm text-destructive">{errors.cityId.message}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Country</Label>
+                <Controller
+                  name="countryId"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(v) => {
+                        field.onChange(v);
+                        setValue("stateId", "");
+                        setValue("cityId", "");
+                      }}
+                    >
+                      <SelectTrigger
+                        className={cn(errors.countryId && "border-destructive focus:ring-destructive")}
+                        aria-invalid={!!errors.countryId}
+                      >
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countries.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.countryId && (
+                  <p className="text-sm text-destructive">{errors.countryId.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Province/State</Label>
+                <Controller
+                  name="stateId"
+                  control={control}
+                  render={({ field }) => (
+                    <SearchableSelect
+                      value={field.value}
+                      onValueChange={(v) => {
+                        field.onChange(v);
+                        const city = allCities.find((item) => item.id === cityId);
+                        if (city?.stateId !== v) {
+                          setValue("cityId", "");
+                        }
+                      }}
+                      disabled={!countryId}
+                      invalid={!!errors.stateId}
+                      placeholder="Search province/state"
+                      searchPlaceholder="Search provinces…"
+                      emptyMessage="No provinces match your search."
+                      options={states.map((state) => ({
+                        value: state.id,
+                        label: state.name,
+                      }))}
+                    />
+                  )}
+                />
+                {errors.stateId && (
+                  <p className="text-sm text-destructive">{errors.stateId.message}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="address">Address (optional)</Label>
+              <Input id="address" {...register("address")} />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Controller
+                name="status"
                 control={control}
                 render={({ field }) => (
                   <Select
                     value={field.value}
                     onValueChange={(v) => {
                       field.onChange(v);
-                      setValue("stateId", "");
-                      setValue("cityId", "");
+                      if (v !== LocationStatus.FOLLOW_UP) {
+                        setValue("followUpDate", undefined);
+                      }
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select country" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {countries.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      {Object.values(LocationStatus).map((s) => (
+                        <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 )}
               />
-              {errors.countryId && (
-                <p className="text-sm text-destructive">{errors.countryId.message}</p>
-              )}
             </div>
-            <div className="space-y-2">
-              <Label>Province/State</Label>
-              <Controller
-                name="stateId"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    value={field.value}
-                    onValueChange={(v) => {
-                      field.onChange(v);
-                      setValue("cityId", "");
-                    }}
-                    disabled={!countryId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select province/state" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {states.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+            {status === LocationStatus.FOLLOW_UP && (
+              <div className="space-y-2">
+                <Label htmlFor="followUpDate">Follow-up date</Label>
+                <Input
+                  id="followUpDate"
+                  type="date"
+                  min={todayDateInput()}
+                  {...register("followUpDate")}
+                />
+                <p className="text-xs text-muted-foreground">
+                  A notification will be sent to the assigned rep on this date.
+                </p>
+                {errors.followUpDate && (
+                  <p className="text-sm text-destructive">{errors.followUpDate.message}</p>
                 )}
-              />
-              {errors.stateId && (
-                <p className="text-sm text-destructive">{errors.stateId.message}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>City</Label>
-            <Controller
-              name="cityId"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  value={field.value || ""}
-                  onValueChange={(v) => field.onChange(v || undefined)}
-                  disabled={!stateId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select city (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Address (optional)</Label>
-            <Input {...register("address")} />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Controller
-              name="status"
-              control={control}
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(LocationStatus).map((s) => (
-                      <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -436,7 +508,7 @@ export function LocationFormDialog({ userRole, editLocation }: LocationFormDialo
   return (
     <Dialog open={locationModalOpen} onOpenChange={handleClose}>
       <DialogContent
-        className="max-h-[90vh] overflow-y-auto"
+        className="max-h-[90vh] overflow-y-auto sm:max-w-lg"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {locationModalOpen && (

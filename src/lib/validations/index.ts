@@ -35,6 +35,14 @@ export const createCitySchema = z.object({
 });
 
 export const updateUserSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").optional(),
+  email: z.string().email("Invalid email address").optional(),
+  role: z.nativeEnum(Role).optional(),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters")
+    .optional()
+    .or(z.literal("")),
   cityIds: z.array(z.string().regex(/^[a-f\d]{24}$/i)).optional(),
 });
 
@@ -64,13 +72,26 @@ const contactFieldsRefinement = (
   }
 };
 
+const followUpDateRefinement = (
+  data: { status?: LocationStatus; followUpDate?: string | null },
+  ctx: z.RefinementCtx
+) => {
+  if (data.status === LocationStatus.FOLLOW_UP && !data.followUpDate?.trim()) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["followUpDate"],
+      message: "Follow-up date is required when status is Follow-up",
+    });
+  }
+};
+
 /** Client-side location form — all fields registered with RHF */
 export const locationFormSchema = z
   .object({
     eventName: z.string().trim().min(1, "Event name is required"),
     countryId: z.string().min(1, "Country is required"),
     stateId: z.string().min(1, "Province/State is required"),
-    cityId: z.string().optional(),
+    cityId: requiredObjectId("City"),
     address: z.string().optional(),
     assignedRepId: z.string().nullable().optional(),
     status: z.nativeEnum(LocationStatus),
@@ -78,9 +99,13 @@ export const locationFormSchema = z
     contactEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
     contactPhone: z.string().optional(),
     reachedOutDate: z.string().optional(),
+    followUpDate: z.string().optional(),
     notes: z.string().optional(),
   })
-  .superRefine(contactFieldsRefinement);
+  .superRefine((data, ctx) => {
+    contactFieldsRefinement(data, ctx);
+    followUpDateRefinement(data, ctx);
+  });
 
 /** API: create location */
 export const createLocationSchema = z
@@ -88,10 +113,7 @@ export const createLocationSchema = z
     eventName: z.string().trim().min(1, "Event name is required"),
     countryId: requiredObjectId("Country"),
     stateId: requiredObjectId("Province/State"),
-    cityId: z
-      .string()
-      .regex(/^[a-f\d]{24}$/i)
-      .optional(),
+    cityId: requiredObjectId("City"),
     address: z.string().trim().optional(),
     assignedRepId: z
       .string()
@@ -102,9 +124,13 @@ export const createLocationSchema = z
     contactEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
     contactPhone: z.string().trim().optional(),
     reachedOutDate: z.string().optional(),
+    followUpDate: z.string().optional(),
     notes: z.string().trim().optional(),
   })
-  .superRefine(contactFieldsRefinement);
+  .superRefine((data, ctx) => {
+    contactFieldsRefinement(data, ctx);
+    followUpDateRefinement(data, ctx);
+  });
 
 /** API: update location */
 export const updateLocationSchema = z
@@ -114,7 +140,7 @@ export const updateLocationSchema = z
     stateId: requiredObjectId("Province/State").optional(),
     cityId: z
       .string()
-      .regex(/^[a-f\d]{24}$/i)
+      .regex(/^[a-f\d]{24}$/i, "Select a valid city")
       .nullable()
       .optional(),
     address: z.string().trim().nullable().optional(),
@@ -128,6 +154,7 @@ export const updateLocationSchema = z
     contactEmail: z.string().email("Invalid email address").nullable().optional().or(z.literal("")),
     contactPhone: z.string().trim().nullable().optional(),
     reachedOutDate: z.string().nullable().optional(),
+    followUpDate: z.string().nullable().optional(),
     notes: z.string().trim().nullable().optional(),
   })
   .superRefine((data, ctx) => {
@@ -137,6 +164,13 @@ export const updateLocationSchema = z
         contactModes: data.contactModes,
         contactEmail: data.contactEmail ?? undefined,
         contactPhone: data.contactPhone ?? undefined,
+      },
+      ctx
+    );
+    followUpDateRefinement(
+      {
+        status: data.status,
+        followUpDate: data.followUpDate,
       },
       ctx
     );
@@ -182,10 +216,11 @@ export function toCreateLocationPayload(data: LocationFormInput): CreateLocation
     address: data.address?.trim() || undefined,
     notes: data.notes?.trim() || undefined,
     assignedRepId: data.assignedRepId || undefined,
-    cityId: data.cityId || undefined,
+    cityId: data.cityId,
     contactEmail: data.contactEmail?.trim() || undefined,
     contactPhone: data.contactPhone?.trim() || undefined,
     reachedOutDate: data.reachedOutDate || undefined,
+    followUpDate: data.followUpDate || undefined,
   });
 }
 
@@ -195,9 +230,10 @@ export function toUpdateLocationPayload(data: LocationFormInput): UpdateLocation
     address: data.address?.trim() || null,
     notes: data.notes?.trim() || null,
     assignedRepId: data.assignedRepId ?? null,
-    cityId: data.cityId || null,
+    cityId: data.cityId,
     contactEmail: data.contactEmail?.trim() || null,
     contactPhone: data.contactPhone?.trim() || null,
     reachedOutDate: data.reachedOutDate || null,
+    followUpDate: data.followUpDate || null,
   });
 }

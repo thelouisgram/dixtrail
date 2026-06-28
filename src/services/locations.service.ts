@@ -7,8 +7,10 @@ import {
 } from "@/lib/validations";
 import { ActivityType, LocationStatus, Role } from "@prisma/client";
 import { logActivity } from "@/services/activities.service";
+import { processFollowUpReminders } from "@/services/follow-up-reminders.service";
 import { notifyLocationAssignment } from "@/services/notifications.service";
 import { STATUS_LABELS } from "@/lib/constants";
+import { parseDateInput } from "@/lib/date-utils";
 
 const locationInclude = {
   country: true,
@@ -83,6 +85,8 @@ export async function getLocations(
   userId: string,
   role: Role
 ) {
+  await processFollowUpReminders();
+
   const filters = buildLocationWhere(query);
   const accessScope =
     role === Role.SALES_REP && query.mineOnly
@@ -144,21 +148,31 @@ export async function createLocation(
   const assignedRepId =
     role === Role.SALES_REP ? userId : data.assignedRepId ?? null;
 
+  const status = data.status ?? LocationStatus.ASSIGNED;
+  const followUpDate =
+    status === LocationStatus.FOLLOW_UP && data.followUpDate
+      ? parseDateInput(data.followUpDate)
+      : null;
+  if (status === LocationStatus.FOLLOW_UP && !followUpDate) {
+    throw new Error("Follow-up date is required when status is Follow-up");
+  }
+
   const location = await prisma.location.create({
     data: {
       eventName: data.eventName,
       normalizedEventName,
       countryId: data.countryId,
       stateId: data.stateId,
-      cityId: data.cityId ?? null,
+      cityId: data.cityId,
       address: data.address ?? null,
       assignedRepId,
       createdById: userId,
-      status: data.status ?? LocationStatus.ASSIGNED,
+      status,
       contactModes: data.contactModes ?? [],
       contactEmail: data.contactEmail?.trim() || null,
       contactPhone: data.contactPhone?.trim() || null,
-      reachedOutDate: data.reachedOutDate ? new Date(data.reachedOutDate) : null,
+      reachedOutDate: data.reachedOutDate ? parseDateInput(data.reachedOutDate) : null,
+      followUpDate,
       notes: data.notes ?? null,
     },
     include: locationInclude,
@@ -184,6 +198,8 @@ export async function createLocation(
       location.eventName
     );
   }
+
+  await processFollowUpReminders();
 
   return location;
 }
@@ -227,8 +243,25 @@ export async function updateLocation(
     contactEmail?: string | null;
     contactPhone?: string | null;
     reachedOutDate?: Date | null;
+    followUpDate?: Date | null;
     notes?: string | null;
   } = {};
+
+  const nextStatus = data.status ?? location.status;
+  let nextFollowUpDate =
+    data.followUpDate !== undefined
+      ? data.followUpDate
+        ? parseDateInput(data.followUpDate)
+        : null
+      : location.followUpDate;
+
+  if (nextStatus !== LocationStatus.FOLLOW_UP) {
+    nextFollowUpDate = null;
+  }
+
+  if (nextStatus === LocationStatus.FOLLOW_UP && !nextFollowUpDate) {
+    throw new Error("Follow-up date is required when status is Follow-up");
+  }
 
   if (data.eventName !== undefined) {
     updateData.eventName = data.eventName;
@@ -245,8 +278,11 @@ export async function updateLocation(
   if (data.notes !== undefined) updateData.notes = data.notes;
   if (data.reachedOutDate !== undefined) {
     updateData.reachedOutDate = data.reachedOutDate
-      ? new Date(data.reachedOutDate)
+      ? parseDateInput(data.reachedOutDate)
       : null;
+  }
+  if (data.status !== undefined || data.followUpDate !== undefined) {
+    updateData.followUpDate = nextFollowUpDate;
   }
 
   if (role !== Role.SALES_REP && data.assignedRepId !== undefined) {
@@ -297,6 +333,8 @@ export async function updateLocation(
       description: `Updated location "${eventName}"`,
     });
   }
+
+  await processFollowUpReminders();
 
   return updated;
 }

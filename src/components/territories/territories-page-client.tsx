@@ -36,18 +36,29 @@ import {
 } from "@/components/ui/select";
 import { useConfirmDelete } from "@/components/ui/confirm-delete-dialog";
 import { QueryPageError } from "@/components/ui/query-page-error";
-import { LOADING_SURFACE_CLASS, TerritoriesListPlaceholder } from "@/components/ui/cute-placeholder";
+import {
+  CompactListPlaceholder,
+  EmptyState,
+  isInitialQueryLoad,
+  isKeyedQueryLoading,
+  LOADING_SURFACE_CLASS,
+  TerritoriesListPlaceholder,
+} from "@/components/ui/cute-placeholder";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 
 export function TerritoriesPageClient() {
   const { data: countries, isError, refetch, isPending } = useCountries();
   const countryList = countries ?? [];
-  const isFirstLoad = isPending && countries === undefined;
+  const isFirstLoad = isInitialQueryLoad(isPending, countries);
   const [viewCountryId, setViewCountryId] = useState("");
   const [viewStateId, setViewStateId] = useState("");
-  const { data: states = [] } = useStates(viewCountryId || undefined);
-  const { data: stateCities = [] } = useCities(viewStateId, { fetchAll: false });
+  const { data: states = [], isPending: statesPending } = useStates(viewCountryId || undefined);
+  const { data: stateCities = [], isPending: citiesPending } = useCities(viewStateId, {
+    fetchAll: false,
+  });
+  const statesLoading = isKeyedQueryLoading(!!viewCountryId, statesPending, states);
+  const citiesLoading = isKeyedQueryLoading(!!viewStateId, citiesPending, stateCities);
   const createCountry = useCreateCountry();
   const createState = useCreateState();
   const createCity = useCreateCity();
@@ -348,7 +359,9 @@ export function TerritoriesPageClient() {
                       </div>
                     </div>
                     {viewCountryId === country.id && (
-                      states.length > 0 ? (
+                      statesLoading ? (
+                        <CompactListPlaceholder rows={3} />
+                      ) : states.length > 0 ? (
                         <ul className="mt-3 space-y-2 border-t pt-3">
                           {states.map((state) => (
                             <li key={state.id} className="rounded-md border p-3">
@@ -371,7 +384,9 @@ export function TerritoriesPageClient() {
                                 </Button>
                               </div>
                               {viewStateId === state.id && (
-                                stateCities.length > 0 ? (
+                                citiesLoading ? (
+                                  <CompactListPlaceholder rows={5} />
+                                ) : stateCities.length > 0 ? (
                                   <ul className="mt-2 space-y-1 border-t pt-2">
                                     {stateCities.map((city) => (
                                       <li key={city.id} className="flex items-center justify-between text-sm">

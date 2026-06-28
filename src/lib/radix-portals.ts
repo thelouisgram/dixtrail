@@ -74,22 +74,53 @@ export function acknowledgeDialogOutsideDismissAttempt() {
 }
 
 /** Keep dialogs open when interacting with or dismissing portaled selects/menus. */
-export function shouldPreventDialogOutsideDismiss(_event?: {
+export function shouldPreventDialogOutsideDismiss(event?: {
   target: EventTarget | null;
 }): boolean {
   initNestedOverlayDismissGuard();
 
+  if (event && isRadixPortalTarget(event.target)) return true;
   if (pendingNestedOverlayDismiss) return true;
   if (nestedOverlayCount > 0) return true;
-  if (_event && isRadixPortalTarget(_event.target)) return true;
   if (hasOpenRadixOverlay()) return true;
 
   return false;
 }
 
-export function handleDialogOutsideDismiss(event: { preventDefault: () => void }) {
-  if (shouldPreventDialogOutsideDismiss()) {
+/** Pointer / interact outside — prevent dialog from closing. */
+export function handleDialogPointerOutside(event: {
+  preventDefault: () => void;
+  target: EventTarget | null;
+}) {
+  if (shouldPreventDialogOutsideDismiss(event)) {
     event.preventDefault();
     acknowledgeDialogOutsideDismissAttempt();
   }
+}
+
+/** Focus outside — allow focus into portaled select search inputs. */
+export function handleDialogFocusOutside(event: {
+  preventDefault: () => void;
+  target: EventTarget | null;
+}) {
+  if (isRadixPortalTarget(event.target)) {
+    acknowledgeDialogOutsideDismissAttempt();
+    return;
+  }
+
+  if (shouldPreventDialogOutsideDismiss(event)) {
+    event.preventDefault();
+    acknowledgeDialogOutsideDismissAttempt();
+  }
+}
+
+/** @deprecated Use handleDialogPointerOutside or handleDialogFocusOutside */
+export function handleDialogOutsideDismiss(event: {
+  preventDefault: () => void;
+  target?: EventTarget | null;
+}) {
+  handleDialogPointerOutside({
+    preventDefault: event.preventDefault,
+    target: event.target ?? null,
+  });
 }

@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { BouncingDots } from "@/components/ui/cute-placeholder";
+import { UserDetailPlaceholder } from "@/components/ui/cute-placeholder";
 
 export function UserDetailDialog() {
   const { userDetailId, setUserDetailId } = useUIStore();
@@ -26,9 +26,7 @@ export function UserDetailDialog() {
     <Dialog open={!!userDetailId} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         {isPending || !user ? (
-          <div className="flex justify-center py-12">
-            <BouncingDots />
-          </div>
+          <UserDetailPlaceholder />
         ) : (
           <>
             <DialogHeader>

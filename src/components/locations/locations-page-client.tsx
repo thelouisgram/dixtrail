@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { LocationStatus } from "@prisma/client";
 import { Plus, MoreHorizontal, Pencil, Trash2, SlidersHorizontal } from "lucide-react";
@@ -14,8 +14,11 @@ import { useCountries, useStates, useCities } from "@/hooks/use-countries";
 import { useSalesReps } from "@/hooks/use-users";
 import { useUIStore } from "@/stores/ui-store";
 import { STATUS_COLORS, STATUS_LABELS, formatContactModes } from "@/lib/constants";
+import { formatDateInput, todayDateInput } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -34,6 +37,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -41,13 +45,29 @@ import { LocationFormDialog } from "./location-form-dialog";
 import { useConfirmDelete } from "@/components/ui/confirm-delete-dialog";
 import { QueryPageError } from "@/components/ui/query-page-error";
 import {
+  EmptyState,
+  isInitialQueryLoad,
   LOADING_SURFACE_CLASS,
   LocationsTablePlaceholder,
 } from "@/components/ui/cute-placeholder";
 import { PageHeader } from "@/components/ui/page-header";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { cn } from "@/lib/utils";
 
-import type { Location } from "@/types";
+import type { City, Location } from "@/types";
+
+function toCityFilterOptions(cities: City[]): SearchableSelectOption[] {
+  return [
+    { value: "all", label: "All Cities" },
+    ...cities.map((city) => ({
+      value: city.id,
+      label: city.name,
+      description: city.state
+        ? `${city.state.name}, ${city.state.country?.name ?? ""}`
+        : undefined,
+    })),
+  ];
+}
 
 interface LocationsPageClientProps {
   userRole: string;
@@ -58,7 +78,7 @@ interface LocationFilterSelectsProps {
   setLocationFilters: ReturnType<typeof useUIStore.getState>["setLocationFilters"];
   countries: { id: string; name: string }[];
   states: { id: string; name: string }[];
-  cities: { id: string; name: string }[];
+  allCities: City[];
   reps: { id: string; name: string | null }[];
   isAdmin: boolean;
   layout?: "grid" | "stack";
@@ -69,126 +89,141 @@ function LocationFilterSelects({
   setLocationFilters,
   countries,
   states,
-  cities,
+  allCities,
   reps,
   isAdmin,
   layout = "grid",
 }: LocationFilterSelectsProps) {
   const containerClass =
     layout === "stack"
-      ? "flex flex-col gap-4"
-      : "contents";
+      ? "flex flex-col gap-3"
+      : "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5";
+
+  const itemClass = "min-w-0";
+
+  const cityOptions = useMemo(() => toCityFilterOptions(allCities), [allCities]);
+
+  function handleCityFilterChange(selectedCityId: string) {
+    if (selectedCityId === "all") {
+      setLocationFilters({ cityId: "", page: 1 });
+      return;
+    }
+
+    const city = allCities.find((item) => item.id === selectedCityId);
+    setLocationFilters({
+      cityId: selectedCityId,
+      stateId: city?.stateId ?? "",
+      countryId: city?.state?.country?.id ?? "",
+      page: 1,
+    });
+  }
 
   return (
     <div className={containerClass}>
-      <Select
-        value={locationFilters.status || "all"}
-        onValueChange={(v) =>
-          setLocationFilters({
-            status: v === "all" ? "" : (v as LocationStatus),
-            page: 1,
-          })
-        }
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Statuses</SelectItem>
-          {Object.values(LocationStatus).map((s) => (
-            <SelectItem key={s} value={s}>
-              {STATUS_LABELS[s]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select
-        value={locationFilters.countryId || "all"}
-        onValueChange={(v) =>
-          setLocationFilters({
-            countryId: v === "all" ? "" : v,
-            stateId: "",
-            cityId: "",
-            page: 1,
-          })
-        }
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Country" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Countries</SelectItem>
-          {countries.map((c) => (
-            <SelectItem key={c.id} value={c.id}>
-              {c.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select
-        value={locationFilters.stateId || "all"}
-        onValueChange={(v) =>
-          setLocationFilters({
-            stateId: v === "all" ? "" : v,
-            cityId: "",
-            page: 1,
-          })
-        }
-        disabled={!locationFilters.countryId}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Province/State" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Provinces/States</SelectItem>
-          {states.map((s) => (
-            <SelectItem key={s.id} value={s.id}>
-              {s.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Select
-        value={locationFilters.cityId || "all"}
-        onValueChange={(v) =>
-          setLocationFilters({ cityId: v === "all" ? "" : v, page: 1 })
-        }
-        disabled={!locationFilters.stateId}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="City" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Cities</SelectItem>
-          {cities.map((c) => (
-            <SelectItem key={c.id} value={c.id}>
-              {c.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {isAdmin && (
+      <div className={itemClass}>
         <Select
-          value={locationFilters.assignedRepId || "all"}
+          value={locationFilters.status || "all"}
           onValueChange={(v) =>
             setLocationFilters({
-              assignedRepId: v === "all" ? "" : v,
+              status: v === "all" ? "" : (v as LocationStatus),
               page: 1,
             })
           }
         >
           <SelectTrigger>
-            <SelectValue placeholder="Assigned Rep" />
+            <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Reps</SelectItem>
-            {reps.map((r) => (
-              <SelectItem key={r.id} value={r.id}>
-                {r.name ?? "Unnamed"}
+            <SelectItem value="all">All Statuses</SelectItem>
+            {Object.values(LocationStatus).map((s) => (
+              <SelectItem key={s} value={s}>
+                {STATUS_LABELS[s]}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+      </div>
+      <div className={itemClass}>
+        <Select
+          value={locationFilters.countryId || "all"}
+          onValueChange={(v) =>
+            setLocationFilters({
+              countryId: v === "all" ? "" : v,
+              stateId: "",
+              cityId: "",
+              page: 1,
+            })
+          }
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Country" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Countries</SelectItem>
+            {countries.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className={itemClass}>
+        <SearchableSelect
+          portalMode="body"
+          value={locationFilters.stateId || "all"}
+          onValueChange={(v) =>
+            setLocationFilters({
+              stateId: v === "all" ? "" : v,
+              cityId: "",
+              page: 1,
+            })
+          }
+          disabled={!locationFilters.countryId}
+          placeholder="Province/State"
+          searchPlaceholder="Search provinces…"
+          emptyMessage="No provinces match your search."
+          options={[
+            { value: "all", label: "All Provinces/States" },
+            ...states.map((state) => ({ value: state.id, label: state.name })),
+          ]}
+        />
+      </div>
+      <div className={itemClass}>
+        <SearchableSelect
+          portalMode="body"
+          value={locationFilters.cityId || "all"}
+          onValueChange={handleCityFilterChange}
+          placeholder="City"
+          searchPlaceholder="Search cities…"
+          emptyMessage="No cities match your search."
+          options={cityOptions}
+        />
+      </div>
+      {isAdmin && (
+        <div className={itemClass}>
+          <Select
+            value={locationFilters.assignedRepId || "all"}
+            onValueChange={(v) =>
+              setLocationFilters({
+                assignedRepId: v === "all" ? "" : v,
+                page: 1,
+              })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Assigned Rep" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Reps</SelectItem>
+              {reps.map((r) => (
+                <SelectItem key={r.id} value={r.id}>
+                  {r.name ?? "Unnamed"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       )}
     </div>
   );
@@ -197,6 +232,12 @@ function LocationFilterSelects({
 export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
   const searchParams = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [followUpPrompt, setFollowUpPrompt] = useState<{
+    id: string;
+    eventName: string;
+    previousStatus: LocationStatus;
+  } | null>(null);
+  const [followUpDate, setFollowUpDate] = useState("");
   const { data, isError, refetch, isPending } = useLocations();
   const deleteLocation = useDeleteLocation();
   const updateStatus = useUpdateLocationStatus();
@@ -228,7 +269,7 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
   }, [searchParams, setLocationFilters]);
 
   const { data: states = [] } = useStates(locationFilters.countryId || undefined);
-  const { data: cities = [] } = useCities(locationFilters.stateId, { fetchAll: false });
+  const { data: allCities = [] } = useCities(undefined, { fetchAll: true });
 
   const locations: Location[] = data?.locations ?? [];
   const pagination = data?.pagination;
@@ -238,7 +279,7 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
 
   const isAdmin = userRole === "ADMIN" || userRole === "MANAGER";
   const isSalesRep = userRole === "SALES_REP";
-  const isFirstLoad = isPending && data === undefined;
+  const isFirstLoad = isInitialQueryLoad(isPending, data);
   const rowOffset = pagination ? (pagination.page - 1) * pagination.limit : 0;
 
   const activeFilterCount = [
@@ -270,7 +311,7 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
     setLocationFilters,
     countries,
     states,
-    cities,
+    allCities,
     reps,
     isAdmin,
   };
@@ -280,12 +321,43 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
     setLocationModalOpen(true);
   }
 
-  async function handleStatusChange(id: string, status: LocationStatus) {
+  async function handleStatusChange(
+    id: string,
+    status: LocationStatus,
+    currentStatus: LocationStatus,
+    eventName: string
+  ) {
+    if (status === LocationStatus.FOLLOW_UP) {
+      setFollowUpDate("");
+      setFollowUpPrompt({ id, eventName, previousStatus: currentStatus });
+      return;
+    }
+
     try {
       await updateStatus.mutateAsync({ id, status });
       toast.success("Status updated");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update status");
+    }
+  }
+
+  async function confirmFollowUpDate() {
+    if (!followUpPrompt || !followUpDate) {
+      toast.error("Select a follow-up date");
+      return;
+    }
+
+    try {
+      await updateStatus.mutateAsync({
+        id: followUpPrompt.id,
+        status: LocationStatus.FOLLOW_UP,
+        followUpDate,
+      });
+      toast.success("Follow-up scheduled");
+      setFollowUpPrompt(null);
+      setFollowUpDate("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to schedule follow-up");
     }
   }
 
@@ -326,13 +398,13 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
           }
         />
 
-      <Card className={cn(isFirstLoad && LOADING_SURFACE_CLASS, "animate-fade-in-up")}>
+      <Card className={cn(isFirstLoad && LOADING_SURFACE_CLASS, "relative z-10 animate-fade-in-up")}>
         <CardHeader className="hidden lg:block">
           <CardTitle className="text-base">Filters</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 p-4 lg:p-6 lg:pt-0">
-          <div className="flex flex-wrap gap-2">
-            <Input
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <SearchInput
               className="min-w-0 flex-1 basis-[12rem]"
               placeholder="Search events..."
               value={locationFilters.search}
@@ -366,7 +438,7 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
             </Button>
           </div>
 
-          <div className="hidden gap-4 lg:grid lg:grid-cols-4">
+          <div className="hidden lg:block">
             <LocationFilterSelects {...filterSelectProps} />
           </div>
         </CardContent>
@@ -404,7 +476,7 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
                   <tr className="border-b bg-muted/50">
                     <th className="w-12 px-4 py-3 text-left font-medium">#</th>
                     <th className="px-4 py-3 text-left font-medium">Event</th>
-                    <th className="px-4 py-3 text-left font-medium">Territory</th>
+                    <th className="px-4 py-3 text-left font-medium">City</th>
                     <th className="px-4 py-3 text-left font-medium">Status</th>
                     <th className="px-4 py-3 text-left font-medium">Contact</th>
                     <th className="px-4 py-3 text-left font-medium">Assigned Rep</th>
@@ -417,7 +489,11 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
               </table>
             </div>
           ) : locations.length === 0 ? (
-            <p className="p-6 text-muted-foreground">No locations found.</p>
+            <EmptyState
+              className="py-12"
+              title="No locations found."
+              description="Try adjusting your filters or add a new location."
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -425,7 +501,7 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
                   <tr className="border-b bg-muted/50">
                     <th className="w-12 px-4 py-3 text-left font-medium">#</th>
                     <th className="px-4 py-3 text-left font-medium">Event</th>
-                    <th className="px-4 py-3 text-left font-medium">Territory</th>
+                    <th className="px-4 py-3 text-left font-medium">City</th>
                     <th className="px-4 py-3 text-left font-medium">Status</th>
                     <th className="px-4 py-3 text-left font-medium">Contact</th>
                     <th className="px-4 py-3 text-left font-medium">Assigned Rep</th>
@@ -444,30 +520,41 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
                       </td>
                       <td className="px-4 py-3 font-medium">{loc.eventName}</td>
                       <td className="px-4 py-3 text-muted-foreground">
-                        {loc.country.name} / {loc.state.name}
-                        {loc.city?.name ? ` / ${loc.city.name}` : ""}
+                        {loc.city?.name ?? "—"}
                       </td>
                       <td className="px-4 py-3">
-                        <Select
-                          value={loc.status}
-                          onValueChange={(v) =>
-                            handleStatusChange(loc.id, v as LocationStatus)
-                          }
-                          disabled={updateStatus.isPending}
-                        >
-                          <SelectTrigger
-                            className={`h-8 w-37.5 border-0 text-xs font-semibold ${STATUS_COLORS[loc.status]}`}
+                        <div className="space-y-1">
+                          <Select
+                            value={loc.status}
+                            onValueChange={(v) =>
+                              handleStatusChange(
+                                loc.id,
+                                v as LocationStatus,
+                                loc.status,
+                                loc.eventName
+                              )
+                            }
+                            disabled={updateStatus.isPending}
                           >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.values(LocationStatus).map((s) => (
-                              <SelectItem key={s} value={s}>
-                                {STATUS_LABELS[s]}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                            <SelectTrigger
+                              className={`h-8 w-37.5 border-0 text-xs font-semibold ${STATUS_COLORS[loc.status]}`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.values(LocationStatus).map((s) => (
+                                <SelectItem key={s} value={s}>
+                                  {STATUS_LABELS[s]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {loc.status === LocationStatus.FOLLOW_UP && loc.followUpDate && (
+                            <p className="text-xs text-muted-foreground">
+                              Follow-up: {formatDateInput(loc.followUpDate)}
+                            </p>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {formatContactModes(loc.contactModes, loc.contactEmail, loc.contactPhone)}
@@ -539,6 +626,49 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
       )}
 
       <LocationFormDialog userRole={userRole} editLocation={editLocation} />
+      <Dialog
+        open={!!followUpPrompt}
+        onOpenChange={(open) => {
+          if (!open) {
+            setFollowUpPrompt(null);
+            setFollowUpDate("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Schedule follow-up</DialogTitle>
+            <DialogDescription>
+              {followUpPrompt
+                ? `Choose a follow-up date for "${followUpPrompt.eventName}".`
+                : "Choose a follow-up date."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="inline-follow-up-date">Follow-up date</Label>
+              <Input
+                id="inline-follow-up-date"
+                type="date"
+                min={todayDateInput()}
+                value={followUpDate}
+                onChange={(e) => setFollowUpDate(e.target.value)}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              A notification will be sent to the assigned rep on this date.
+            </p>
+            <Button
+              className="w-full"
+              loading={updateStatus.isPending}
+              disabled={!followUpDate}
+              onClick={confirmFollowUpDate}
+            >
+              Save follow-up
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {ConfirmDeleteDialog}
       </div>
     </QueryPageError>

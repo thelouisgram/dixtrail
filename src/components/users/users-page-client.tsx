@@ -6,6 +6,7 @@ import {
   MapPin,
   MoreHorizontal,
   Eye,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUsers, useDeleteUser } from "@/hooks/use-users";
@@ -13,7 +14,7 @@ import { useUIStore } from "@/stores/ui-store";
 import { ROLE_LABELS } from "@/lib/constants";
 import { Role } from "@prisma/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -24,10 +25,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CreateUserDialog } from "@/components/users/create-user-dialog";
+import { EditUserDialog } from "@/components/users/edit-user-dialog";
 import { AssignCitiesDialog } from "@/components/users/assign-cities-dialog";
 import { UserDetailDialog } from "@/components/users/user-detail-dialog";
+import { canDeleteUser, canEditUser } from "@/lib/user-permissions";
 import { useConfirmDelete } from "@/components/ui/confirm-delete-dialog";
-import { LOADING_SURFACE_CLASS, UsersTablePlaceholder } from "@/components/ui/cute-placeholder";
+import {
+  EmptyState,
+  isInitialQueryLoad,
+  LOADING_SURFACE_CLASS,
+  UsersTablePlaceholder,
+} from "@/components/ui/cute-placeholder";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryPageError } from "@/components/ui/query-page-error";
 import { cn } from "@/lib/utils";
@@ -40,12 +48,12 @@ interface UsersPageClientProps {
 
 export function UsersPageClient({ currentUserId, userRole }: UsersPageClientProps) {
   const { data, isPending, isError, refetch } = useUsers();
-  const { setUserModalOpen, setUserDetailId, setAssignCitiesUserId, userFilters, setUserFilters } =
+  const { setUserModalOpen, setEditUserId, setUserDetailId, setAssignCitiesUserId, userFilters, setUserFilters } =
     useUIStore();
   const deleteUser = useDeleteUser();
   const { requestDelete, ConfirmDeleteDialog } = useConfirmDelete();
 
-  const isFirstLoad = isPending && data === undefined;
+  const isFirstLoad = isInitialQueryLoad(isPending, data);
   const userList = data?.users ?? [];
   const pagination = data?.pagination;
   const rowOffset = pagination ? (pagination.page - 1) * pagination.limit : 0;
@@ -84,7 +92,7 @@ export function UsersPageClient({ currentUserId, userRole }: UsersPageClientProp
 
         <Card className={cn(isFirstLoad && LOADING_SURFACE_CLASS, "animate-fade-in-up")}>
           <CardContent className="p-4 lg:p-6">
-            <Input
+            <SearchInput
               placeholder="Search by name or email..."
               value={userFilters.search}
               onChange={(e) => setUserFilters({ search: e.target.value, page: 1 })}
@@ -111,10 +119,15 @@ export function UsersPageClient({ currentUserId, userRole }: UsersPageClientProp
                     <UsersTablePlaceholder />
                   ) : userList.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                        {userFilters.search
-                          ? "No users match your search."
-                          : "No users yet — add your first team member!"}
+                      <td colSpan={6} className="px-4 py-8">
+                        <EmptyState
+                          className="py-8"
+                          title={
+                            userFilters.search
+                              ? "No users match your search."
+                              : "No users yet — add your first team member!"
+                          }
+                        />
                       </td>
                     </tr>
                   ) : (
@@ -150,11 +163,19 @@ export function UsersPageClient({ currentUserId, userRole }: UsersPageClientProp
                                   <Eye className="h-4 w-4" />
                                   View details
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setAssignCitiesUserId(user.id)}>
-                                  <MapPin className="h-4 w-4" />
-                                  Assign cities
-                                </DropdownMenuItem>
-                                {user.id !== currentUserId && user.role !== Role.ADMIN && (
+                                {canEditUser(userRole, currentUserId, user) && (
+                                  <DropdownMenuItem onClick={() => setEditUserId(user.id)}>
+                                    <Pencil className="h-4 w-4" />
+                                    Edit user
+                                  </DropdownMenuItem>
+                                )}
+                                {canEditUser(userRole, currentUserId, user) && (
+                                  <DropdownMenuItem onClick={() => setAssignCitiesUserId(user.id)}>
+                                    <MapPin className="h-4 w-4" />
+                                    Assign cities
+                                  </DropdownMenuItem>
+                                )}
+                                {canDeleteUser(userRole, currentUserId, user) && (
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
@@ -207,6 +228,7 @@ export function UsersPageClient({ currentUserId, userRole }: UsersPageClientProp
         )}
 
         <CreateUserDialog userRole={userRole} />
+        <EditUserDialog currentUserId={currentUserId} userRole={userRole} />
         <AssignCitiesDialog />
         <UserDetailDialog />
         {ConfirmDeleteDialog}
