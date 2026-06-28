@@ -10,6 +10,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:build-canada-data": "tsx prisma/scripts/build-canada-data.ts",
     "db:migrate-location-contact": "tsx prisma/migrate-location-contact.ts",
     "db:setup": "prisma db push && tsx prisma/migrate-location-contact.ts && tsx prisma/seed.ts",
     "postinstall": "prisma generate"

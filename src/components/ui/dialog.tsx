@@ -4,7 +4,7 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { handleDialogOutsideDismiss } from "@/lib/radix-portals";
+import { handleDialogFocusOutside, handleDialogPointerOutside } from "@/lib/radix-portals";
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -17,7 +17,7 @@ const DialogOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-50 bg-black/50", className)}
+    className={cn("fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]", className)}
     {...props}
   />
 ));
@@ -44,19 +44,19 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-card p-6 shadow-lg duration-200 sm:rounded-lg",
+          "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl border bg-card p-6 shadow-xl duration-200 sm:rounded-xl",
           className
         )}
         onPointerDownOutside={(event) => {
-          handleDialogOutsideDismiss(event);
+          handleDialogPointerOutside(event);
           onPointerDownOutside?.(event);
         }}
         onInteractOutside={(event) => {
-          handleDialogOutsideDismiss(event);
+          handleDialogPointerOutside(event);
           onInteractOutside?.(event);
         }}
         onFocusOutside={(event) => {
-          handleDialogOutsideDismiss(event);
+          handleDialogFocusOutside(event);
           onFocusOutside?.(event);
         }}
         {...props}

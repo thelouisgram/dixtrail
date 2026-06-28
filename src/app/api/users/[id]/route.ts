@@ -20,13 +20,18 @@ export const PATCH = withRole(
     const { id } = await context.params;
     const body = await request.json();
     const data = updateUserSchema.parse(body);
-    const user = await updateUser(id, data, session.user.role as Role);
+    const user = await updateUser(
+      id,
+      data,
+      session.user.role as Role,
+      session.user.id
+    );
     return jsonOk(user);
   }
 );
 
 export const DELETE = withRole([Role.ADMIN, Role.MANAGER], async (_request: NextRequest, session: AuthedSession, context: RouteContext) => {
   const { id } = await context.params;
-  await deleteUser(id, session.user.id);
+  await deleteUser(id, session.user.id, session.user.role as Role);
   return jsonOk({ success: true });
 });

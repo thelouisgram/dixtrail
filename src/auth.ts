@@ -38,7 +38,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
         });
 
         if (!dbUser) {
-          return { ...token, id: undefined, role: undefined };
+          return null;
         }
 
         token.role = dbUser.role;

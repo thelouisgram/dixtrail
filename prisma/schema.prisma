@@ -40,6 +40,7 @@ enum ActivityType {
 enum NotificationType {
   LOCATION_ASSIGNED
   CITY_ASSIGNED
+  FOLLOW_UP_DUE
 }
 
 model User {
@@ -123,6 +124,7 @@ model Location {
   contactEmail        String?
   contactPhone        String?
   reachedOutDate      DateTime?
+  followUpDate        DateTime?
   notes               String?
   normalizedEventName String
   createdAt           DateTime       @default(now())
@@ -134,6 +136,7 @@ model Location {
   @@index([status])
   @@index([assignedRepId])
   @@index([cityId])
+  @@index([status, followUpDate])
 }
 
 model Activity {

@@ -10,7 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { QueryPageError } from "@/components/ui/query-page-error";
-import { BouncingDots, LOADING_SURFACE_CLASS } from "@/components/ui/cute-placeholder";
+import {
+  EmptyState,
+  isInitialQueryLoad,
+  LOADING_SURFACE_CLASS,
+  NotificationsListPlaceholder,
+} from "@/components/ui/cute-placeholder";
 import { cn } from "@/lib/utils";
 import type { NotificationItem } from "@/types";
 
@@ -28,7 +33,7 @@ export function NotificationsPageClient() {
 
   const unreadCount = data?.unreadCount ?? 0;
   const notifications = data?.notifications ?? [];
-  const isFirstLoad = isPending && !data;
+  const isFirstLoad = isInitialQueryLoad(isPending, data);
 
   async function handleNotificationClick(notification: NotificationItem) {
     if (!notification.read) {
@@ -65,17 +70,13 @@ export function NotificationsPageClient() {
         <Card className={cn(isFirstLoad && LOADING_SURFACE_CLASS, "animate-fade-in-up")}>
           <CardContent className="p-0">
             {isFirstLoad ? (
-              <div className="flex justify-center py-16">
-                <BouncingDots />
-              </div>
+              <NotificationsListPlaceholder />
             ) : notifications.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-                <Bell className="h-10 w-10 text-muted-foreground/50" />
-                <p className="text-muted-foreground">No notifications yet.</p>
-                <p className="text-sm text-muted-foreground">
-                  You&apos;ll be notified when assigned to a location or city.
-                </p>
-              </div>
+              <EmptyState
+                icon={<Bell className="h-10 w-10 text-muted-foreground/50" />}
+                title="No notifications yet."
+                description="You'll be notified when assigned to a location or city."
+              />
             ) : (
               <ul className="divide-y">
                 {notifications.map((notification, index) => (

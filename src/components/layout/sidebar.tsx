@@ -63,7 +63,7 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between border-b bg-card px-4 lg:hidden">
+      <header className="fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between border-b bg-card px-4 shadow-sm lg:hidden">
         <Logo href="/dashboard" size="sm" />
         <div className="flex items-center gap-1">
           <NotificationNavLink
@@ -87,7 +87,7 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
 
       {sidebarOpen && (
         <div
-          className="fixed inset-0 top-14 z-30 bg-black/50 lg:hidden"
+          className="fixed inset-0 top-14 z-30 bg-black/40 backdrop-blur-[1px] lg:hidden"
           onClick={closeSidebar}
           aria-hidden
         />

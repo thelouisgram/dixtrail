@@ -10,6 +10,8 @@ import { Globe, Layers, MapPin, Users } from "lucide-react";
 import {
   CuteStat,
   CuteCount,
+  EmptyState,
+  isInitialQueryLoad,
   LOADING_SURFACE_CLASS,
   RecentActivityPlaceholder,
 } from "@/components/ui/cute-placeholder";
@@ -25,7 +27,7 @@ export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
   const { data, isPending, isError, refetch } = useDashboard();
   const isAdmin = userRole === "ADMIN" || userRole === "MANAGER";
   const isSalesRep = userRole === "SALES_REP";
-  const isFirstLoad = isPending && !data;
+  const isFirstLoad = isInitialQueryLoad(isPending, data);
   const myLocationsQuery = isSalesRep ? "?mineOnly=true" : "";
 
   const stats = [
@@ -145,11 +147,14 @@ export function DashboardPageClient({ userRole }: DashboardPageClientProps) {
             {isFirstLoad ? (
               <RecentActivityPlaceholder />
             ) : !data?.recentLocations?.length ? (
-              <p className="text-muted-foreground animate-fade-in-up">
-                {isSalesRep
-                  ? "No assigned locations yet — check back after you're assigned to one."
-                  : "No recent locations yet — go add one!"}
-              </p>
+              <EmptyState
+                className="py-8"
+                title={
+                  isSalesRep
+                    ? "No assigned locations yet — check back after you're assigned to one."
+                    : "No recent locations yet — go add one!"
+                }
+              />
             ) : (
               <div className="space-y-3">
                 {data.recentLocations.map((loc, index) => (

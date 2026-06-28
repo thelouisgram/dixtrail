@@ -170,6 +170,7 @@ export function useCreateLocation() {
       queryClient.invalidateQueries({ queryKey: ["locations"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["countries"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }
@@ -205,6 +206,7 @@ export function useUpdateLocation() {
     onSuccess: (updated) => {
       updateLocationInCache(queryClient, updated.id, () => updated);
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }
@@ -212,23 +214,35 @@ export function useUpdateLocation() {
 export function useUpdateLocationStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: LocationStatus }) => {
+    mutationFn: async ({
+      id,
+      status,
+      followUpDate,
+    }: {
+      id: string;
+      status: LocationStatus;
+      followUpDate?: string;
+    }) => {
       const res = await fetch(`/api/locations/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...(followUpDate ? { followUpDate } : {}) }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to update status");
       return json as Location;
     },
-    onMutate: async ({ id, status }) => {
+    onMutate: async ({ id, status, followUpDate }) => {
       await queryClient.cancelQueries({ queryKey: ["locations"] });
       const snapshots = queryClient.getQueriesData<LocationsPage>({ queryKey: ["locations"] });
       const dashboardSnapshot = queryClient.getQueryData<DashboardData>(["dashboard"]);
       const oldStatus = findLocationStatus(queryClient, id);
 
-      updateLocationInCache(queryClient, id, (loc) => ({ ...loc, status }));
+      updateLocationInCache(queryClient, id, (loc) => ({
+        ...loc,
+        status,
+        ...(followUpDate ? { followUpDate } : {}),
+      }));
       adjustDashboardStatusCount(queryClient, oldStatus, status);
 
       return { snapshots, dashboardSnapshot };
@@ -244,6 +258,7 @@ export function useUpdateLocationStatus() {
         const recent = old.recentLocations.filter((l) => l.id !== updated.id);
         return { ...old, recentLocations: [updated, ...recent].slice(0, 5) };
       });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }

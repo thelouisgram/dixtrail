@@ -5,12 +5,14 @@ import { getSalesRepLocationFilter } from "@/services/locations.service";
 
 function serializeLocation<T extends {
   reachedOutDate?: Date | null;
+  followUpDate?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }>(location: T) {
   return {
     ...location,
     reachedOutDate: location.reachedOutDate?.toISOString() ?? null,
+    followUpDate: location.followUpDate?.toISOString() ?? null,
     createdAt: location.createdAt?.toISOString(),
     updatedAt: location.updatedAt?.toISOString(),
   };

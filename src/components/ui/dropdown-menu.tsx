@@ -43,7 +43,7 @@ const DropdownMenuContent = React.forwardRef<
         data-slot="radix-portal-content"
         sideOffset={sideOffset}
         className={cn(
-          "z-[100] min-w-[8rem] overflow-hidden rounded-md border bg-card p-1 text-card-foreground shadow-md",
+          "z-[100] min-w-[8rem] overflow-hidden rounded-lg border bg-card p-1 text-card-foreground shadow-lg",
           className
         )}
         {...props}

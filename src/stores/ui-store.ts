@@ -21,6 +21,7 @@ interface UIState {
   sidebarOpen: boolean;
   locationModalOpen: boolean;
   userModalOpen: boolean;
+  editUserId: string | null;
   userDetailId: string | null;
   assignCitiesUserId: string | null;
   selectedLocationId: string | null;
@@ -30,6 +31,7 @@ interface UIState {
   toggleSidebar: () => void;
   setLocationModalOpen: (open: boolean) => void;
   setUserModalOpen: (open: boolean) => void;
+  setEditUserId: (id: string | null) => void;
   setUserDetailId: (id: string | null) => void;
   setAssignCitiesUserId: (id: string | null) => void;
   setSelectedLocationId: (id: string | null) => void;
@@ -59,6 +61,7 @@ export const useUIStore = create<UIState>((set) => ({
   sidebarOpen: false,
   locationModalOpen: false,
   userModalOpen: false,
+  editUserId: null,
   userDetailId: null,
   assignCitiesUserId: null,
   selectedLocationId: null,
@@ -68,6 +71,7 @@ export const useUIStore = create<UIState>((set) => ({
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   setLocationModalOpen: (open) => set({ locationModalOpen: open }),
   setUserModalOpen: (open) => set({ userModalOpen: open }),
+  setEditUserId: (id) => set({ editUserId: id }),
   setUserDetailId: (id) => set({ userDetailId: id }),
   setAssignCitiesUserId: (id) => set({ assignCitiesUserId: id }),
   setSelectedLocationId: (id) => set({ selectedLocationId: id }),

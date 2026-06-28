@@ -155,12 +155,14 @@ export async function getUserDetail(id: string) {
     assignedLocations: user.assignedLocations.map((loc) => ({
       ...loc,
       reachedOutDate: loc.reachedOutDate?.toISOString() ?? null,
+      followUpDate: loc.followUpDate?.toISOString() ?? null,
       createdAt: loc.createdAt.toISOString(),
       updatedAt: loc.updatedAt.toISOString(),
     })),
     createdLocations: user.createdLocations.map((loc) => ({
       ...loc,
       reachedOutDate: loc.reachedOutDate?.toISOString() ?? null,
+      followUpDate: loc.followUpDate?.toISOString() ?? null,
       createdAt: loc.createdAt.toISOString(),
       updatedAt: loc.updatedAt.toISOString(),
     })),
@@ -208,12 +210,69 @@ export async function createUser(data: CreateUserInput, requesterRole: Role) {
   return serializeUserRow(created);
 }
 
-export async function updateUser(id: string, data: UpdateUserInput, requesterRole: Role) {
+export async function updateUser(
+  id: string,
+  data: UpdateUserInput,
+  requesterRole: Role,
+  requesterId: string
+) {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) throw new Error("User not found");
 
-  if (requesterRole === Role.MANAGER && user.role === Role.ADMIN) {
-    throw new Error("Managers cannot update admin accounts");
+  if (requesterRole === Role.MANAGER) {
+    if (user.role === Role.ADMIN) {
+      throw new Error("Managers cannot update admin accounts");
+    }
+    if (user.role === Role.MANAGER && user.id !== requesterId) {
+      throw new Error("Managers can only update their own manager profile");
+    }
+    if (
+      data.role !== undefined &&
+      data.role !== user.role &&
+      (data.role === Role.ADMIN || data.role === Role.MANAGER)
+    ) {
+      throw new Error("Managers cannot assign admin or manager roles");
+    }
+  }
+
+  if (
+    data.role !== undefined &&
+    user.role === Role.ADMIN &&
+    data.role !== Role.ADMIN
+  ) {
+    const adminCount = await prisma.user.count({ where: { role: Role.ADMIN } });
+    if (adminCount <= 1) {
+      throw new Error("Cannot change the role of the last admin account");
+    }
+  }
+
+  if (data.email !== undefined) {
+    const email = data.email.toLowerCase();
+    if (email !== user.email) {
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) throw new Error("User with this email already exists");
+    }
+  }
+
+  const updateData: {
+    name?: string;
+    email?: string;
+    role?: Role;
+    password?: string;
+  } = {};
+
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.email !== undefined) updateData.email = data.email.toLowerCase();
+  if (data.role !== undefined && data.role !== user.role) updateData.role = data.role;
+  if (data.password?.trim()) {
+    updateData.password = await bcrypt.hash(data.password, 10);
+  }
+
+  if (Object.keys(updateData).length > 0) {
+    await prisma.user.update({
+      where: { id },
+      data: updateData,
+    });
   }
 
   if (data.cityIds !== undefined) {
@@ -227,7 +286,11 @@ export async function updateUser(id: string, data: UpdateUserInput, requesterRol
   return serializeUserRow(updated);
 }
 
-export async function deleteUser(id: string, requesterId: string) {
+export async function deleteUser(
+  id: string,
+  requesterId: string,
+  requesterRole: Role
+) {
   if (id === requesterId) {
     throw new Error("You cannot delete your own account");
   }
@@ -236,7 +299,19 @@ export async function deleteUser(id: string, requesterId: string) {
   if (!user) throw new Error("User not found");
 
   if (user.role === Role.ADMIN) {
-    throw new Error("Admin accounts cannot be deleted");
+    if (requesterRole !== Role.ADMIN) {
+      throw new Error("Only admins can delete admin accounts");
+    }
+    const otherAdmins = await prisma.user.count({
+      where: { role: Role.ADMIN, id: { not: id } },
+    });
+    if (otherAdmins === 0) {
+      throw new Error("Cannot delete the last admin account");
+    }
+  }
+
+  if (requesterRole === Role.MANAGER && user.role === Role.ADMIN) {
+    throw new Error("Managers cannot delete admin accounts");
   }
 
   const createdCount = await prisma.location.count({ where: { createdById: id } });

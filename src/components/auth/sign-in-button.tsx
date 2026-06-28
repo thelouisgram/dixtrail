@@ -32,8 +32,8 @@ export function SignInButton({ status, shake = false, disabled = false }: SignIn
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-100",
         status === "success"
-          ? "bg-emerald-600 text-white shadow-sm"
-          : "bg-primary text-primary-foreground hover:bg-primary/90",
+          ? "bg-emerald-600 text-white shadow-cute-success"
+          : "bg-primary text-primary-foreground shadow-cute-button hover:bg-primary/90",
         shake && "animate-gentle-shake"
       )}
     >
