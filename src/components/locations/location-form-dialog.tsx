@@ -10,7 +10,7 @@ import {
   useSearchLocations,
   useUpdateLocation,
 } from "@/hooks/use-locations";
-import { useCountries, useStates, useCities } from "@/hooks/use-countries";
+import { useCountries, useStates, useSearchCities } from "@/hooks/use-countries";
 import { useSalesReps } from "@/hooks/use-users";
 import { useUIStore } from "@/stores/ui-store";
 import { STATUS_LABELS, CONTACT_MODE_LABELS } from "@/lib/constants";
@@ -53,6 +53,10 @@ function toCityOptions(cities: City[]): SearchableSelectOption[] {
     description: city.state
       ? `${city.state.name}, ${city.state.country?.name ?? ""}`
       : undefined,
+    meta: {
+      stateId: city.stateId,
+      countryId: city.state?.country?.id ?? "",
+    },
   }));
 }
 
@@ -108,23 +112,62 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
   });
 
   const countryId = watch("countryId");
-  const cityId = watch("cityId");
+  const stateId = watch("stateId");
   const status = watch("status");
   const contactModes = watch("contactModes") ?? [];
   const { data: states = [] } = useStates(countryId || undefined);
-  const { data: allCities = [] } = useCities(undefined, { fetchAll: true });
-  const cityOptions = useMemo(() => toCityOptions(allCities), [allCities]);
+  const [citySearch, setCitySearch] = useState("");
+  const [selectedCity, setSelectedCity] = useState<City | null>(null);
+  const { data: searchedCities = [], isFetching: citiesSearching } = useSearchCities(citySearch, {
+    stateId: stateId || undefined,
+    countryId: countryId || undefined,
+  });
+  const citySource = useMemo(() => {
+    const cities = [...searchedCities];
+    if (selectedCity && !cities.some((city) => city.id === selectedCity.id)) {
+      cities.unshift(selectedCity);
+    }
+    return cities;
+  }, [searchedCities, selectedCity]);
+  const cityOptions = useMemo(() => toCityOptions(citySource), [citySource]);
   const { data: searchResults = [] } = useSearchLocations(searchQuery);
 
-  function applyCitySelection(selectedCityId: string) {
-    const city = allCities.find((item) => item.id === selectedCityId);
-    if (!city) return;
+  useEffect(() => {
+    if (!editLocation?.city) return;
+    setSelectedCity({
+      id: editLocation.city.id,
+      name: editLocation.city.name,
+      stateId: editLocation.stateId,
+      state: {
+        id: editLocation.state.id,
+        name: editLocation.state.name,
+        country: { id: editLocation.country.id, name: editLocation.country.name },
+      },
+    });
+  }, [editLocation]);
 
-    setValue("cityId", city.id, { shouldValidate: true });
-    setValue("stateId", city.stateId, { shouldValidate: true });
-    const nextCountryId = city.state?.country?.id;
-    if (nextCountryId) {
-      setValue("countryId", nextCountryId, { shouldValidate: true });
+  function applyCitySelection(option: SearchableSelectOption) {
+    const city =
+      searchedCities.find((item) => item.id === option.value) ??
+      (selectedCity?.id === option.value ? selectedCity : null);
+
+    if (city) {
+      setSelectedCity(city);
+      setValue("cityId", city.id, { shouldValidate: true });
+      setValue("stateId", city.stateId, { shouldValidate: true });
+      const nextCountryId = city.state?.country?.id;
+      if (nextCountryId) {
+        setValue("countryId", nextCountryId, { shouldValidate: true });
+      }
+      return;
+    }
+
+    if (option.meta?.stateId) {
+      setValue("cityId", option.value, { shouldValidate: true });
+      setValue("stateId", option.meta.stateId, { shouldValidate: true });
+      if (option.meta.countryId) {
+        setValue("countryId", option.meta.countryId, { shouldValidate: true });
+      }
     }
   }
 
@@ -244,12 +287,17 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
                   <SearchableSelect
                     value={field.value}
                     onValueChange={field.onChange}
-                    onOptionSelect={(option) => applyCitySelection(option.value)}
+                    onOptionSelect={applyCitySelection}
                     invalid={!!errors.cityId}
                     placeholder="Search city"
                     searchPlaceholder="Search cities…"
                     emptyMessage="No cities match your search."
+                    typeToSearchMessage="Type at least 2 characters to search cities."
                     options={cityOptions}
+                    serverSearch
+                    minSearchLength={2}
+                    onSearchChange={setCitySearch}
+                    isSearching={citiesSearching}
                   />
                 )}
               />
@@ -301,9 +349,9 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
                       value={field.value}
                       onValueChange={(v) => {
                         field.onChange(v);
-                        const city = allCities.find((item) => item.id === cityId);
-                        if (city?.stateId !== v) {
+                        if (selectedCity?.stateId !== v) {
                           setValue("cityId", "");
+                          setSelectedCity(null);
                         }
                       }}
                       disabled={!countryId}

@@ -7,7 +7,6 @@ import {
 } from "@/lib/validations";
 import { ActivityType, LocationStatus, Role } from "@prisma/client";
 import { logActivity } from "@/services/activities.service";
-import { processFollowUpReminders } from "@/services/follow-up-reminders.service";
 import { notifyLocationAssignment } from "@/services/notifications.service";
 import { STATUS_LABELS } from "@/lib/constants";
 import { parseDateInput } from "@/lib/date-utils";
@@ -85,8 +84,6 @@ export async function getLocations(
   userId: string,
   role: Role
 ) {
-  await processFollowUpReminders();
-
   const filters = buildLocationWhere(query);
   const accessScope =
     role === Role.SALES_REP && query.mineOnly
@@ -198,8 +195,6 @@ export async function createLocation(
       location.eventName
     );
   }
-
-  await processFollowUpReminders();
 
   return location;
 }
@@ -333,8 +328,6 @@ export async function updateLocation(
       description: `Updated location "${eventName}"`,
     });
   }
-
-  await processFollowUpReminders();
 
   return updated;
 }

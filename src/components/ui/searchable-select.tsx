@@ -18,6 +18,7 @@ export type SearchableSelectOption = {
   value: string;
   label: string;
   description?: string;
+  meta?: Record<string, string>;
 };
 
 interface SearchableSelectProps {
@@ -28,8 +29,15 @@ interface SearchableSelectProps {
   placeholder?: string;
   searchPlaceholder?: string;
   emptyMessage?: string;
+  /** Shown when serverSearch is enabled and the query is shorter than minSearchLength. */
+  typeToSearchMessage?: string;
   disabled?: boolean;
   invalid?: boolean;
+  /** When true, options are already filtered server-side; skip client filtering. */
+  serverSearch?: boolean;
+  isSearching?: boolean;
+  minSearchLength?: number;
+  onSearchChange?: (query: string) => void;
   /** auto = dialog when inside modal, otherwise body. body = always portaled to body. */
   portalMode?: "auto" | "body";
   className?: string;
@@ -75,8 +83,13 @@ export function SearchableSelect({
   placeholder = "Select…",
   searchPlaceholder = "Search…",
   emptyMessage = "No matches found.",
+  typeToSearchMessage,
   disabled = false,
   invalid = false,
+  serverSearch = false,
+  isSearching = false,
+  minSearchLength = 0,
+  onSearchChange,
   portalMode = "auto",
   className,
   triggerClassName,
@@ -99,13 +112,17 @@ export function SearchableSelect({
   const itemHeight = options.some((option) => option.description) ? 44 : 36;
 
   const filteredOptions = useMemo(() => {
+    if (serverSearch) return options;
     const query = search.trim().toLowerCase();
     if (!query) return options;
     return options.filter((option) => {
       const haystack = `${option.label} ${option.description ?? ""}`.toLowerCase();
       return haystack.includes(query);
     });
-  }, [options, search]);
+  }, [options, search, serverSearch]);
+
+  const needsMoreChars =
+    serverSearch && minSearchLength > 0 && search.trim().length < minSearchLength;
 
   const useVirtualList = filteredOptions.length >= VIRTUALIZE_THRESHOLD;
 
@@ -229,6 +246,10 @@ export function SearchableSelect({
   }, [open, portalContainer]);
 
   useEffect(() => {
+    onSearchChange?.(search);
+  }, [search, onSearchChange]);
+
+  useEffect(() => {
     if (!open) return;
 
     const frame = window.requestAnimationFrame(() => {
@@ -343,10 +364,15 @@ export function SearchableSelect({
     );
   }
 
-  const listContent =
-    filteredOptions.length === 0 ? (
-      <p className="px-2 py-6 text-center text-sm text-muted-foreground">{emptyMessage}</p>
-    ) : useVirtualList ? (
+  const listContent = needsMoreChars ? (
+    <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+      {typeToSearchMessage ?? `Type at least ${minSearchLength} characters to search.`}
+    </p>
+  ) : isSearching ? (
+    <p className="px-2 py-6 text-center text-sm text-muted-foreground">Searching…</p>
+  ) : filteredOptions.length === 0 ? (
+    <p className="px-2 py-6 text-center text-sm text-muted-foreground">{emptyMessage}</p>
+  ) : useVirtualList ? (
       <div style={{ height: virtualRange.totalHeight, position: "relative" }}>
         <div style={{ transform: `translateY(${virtualRange.offsetY}px)` }}>
           {visibleOptions.map((option, localIndex) =>

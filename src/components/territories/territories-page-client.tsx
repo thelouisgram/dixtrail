@@ -54,9 +54,7 @@ export function TerritoriesPageClient() {
   const [viewCountryId, setViewCountryId] = useState("");
   const [viewStateId, setViewStateId] = useState("");
   const { data: states = [], isPending: statesPending } = useStates(viewCountryId || undefined);
-  const { data: stateCities = [], isPending: citiesPending } = useCities(viewStateId, {
-    fetchAll: false,
-  });
+  const { data: stateCities = [], isPending: citiesPending } = useCities(viewStateId || undefined);
   const statesLoading = isKeyedQueryLoading(!!viewCountryId, statesPending, states);
   const citiesLoading = isKeyedQueryLoading(!!viewStateId, citiesPending, stateCities);
   const createCountry = useCreateCountry();
