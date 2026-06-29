@@ -1,7 +1,6 @@
 import { NotificationType } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { isValidObjectId } from "@/lib/utils";
-import { processFollowUpReminders } from "@/services/follow-up-reminders.service";
 
 export async function createNotification(input: {
   userId: string;
@@ -62,8 +61,6 @@ export async function getNotificationsForUser(userId: string, limit = 20) {
   }
 
   try {
-    await processFollowUpReminders();
-
     const [notifications, unreadCount] = await Promise.all([
       prisma.notification.findMany({
         where: { userId },

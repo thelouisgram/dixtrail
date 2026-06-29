@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Country, State, City } from "@/types";
 import {
@@ -156,17 +157,70 @@ export function useCreateState() {
   });
 }
 
-export function useCities(stateId?: string, options?: { fetchAll?: boolean }) {
-  const fetchAll = options?.fetchAll ?? !stateId;
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
+}
+
+export function useCities(stateId?: string) {
   return useQuery({
-    queryKey: ["cities", fetchAll ? "all" : stateId],
+    queryKey: ["cities", stateId],
     queryFn: async () => {
-      const url = fetchAll ? "/api/cities" : `/api/cities?stateId=${stateId}`;
-      const res = await fetch(url);
+      const res = await fetch(`/api/cities?stateId=${stateId}`);
       if (!res.ok) throw new Error("Failed to fetch cities");
       return res.json() as Promise<City[]>;
     },
-    enabled: fetchAll || !!stateId,
+    enabled: !!stateId,
+  });
+}
+
+export function useCity(cityId?: string) {
+  return useQuery({
+    queryKey: ["cities", "one", cityId],
+    queryFn: async () => {
+      const res = await fetch(`/api/cities?id=${cityId}`);
+      if (!res.ok) throw new Error("Failed to fetch city");
+      const cities = (await res.json()) as City[];
+      return cities[0] ?? null;
+    },
+    enabled: !!cityId,
+  });
+}
+
+export function useSearchCities(
+  query: string,
+  options?: {
+    stateId?: string;
+    countryId?: string;
+    limit?: number;
+    enabled?: boolean;
+  }
+) {
+  const debouncedQuery = useDebouncedValue(query.trim(), 300);
+  const stateId = options?.stateId;
+  const countryId = options?.countryId;
+  const limit = options?.limit ?? 50;
+  const enabled = options?.enabled ?? true;
+  const canSearch = !!stateId || debouncedQuery.length >= 2;
+
+  return useQuery({
+    queryKey: ["cities", "search", debouncedQuery, stateId, countryId, limit],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (debouncedQuery) params.set("q", debouncedQuery);
+      if (stateId) params.set("stateId", stateId);
+      if (countryId) params.set("countryId", countryId);
+      params.set("limit", String(limit));
+      const res = await fetch(`/api/cities?${params}`);
+      if (!res.ok) throw new Error("Failed to search cities");
+      return res.json() as Promise<City[]>;
+    },
+    enabled: enabled && canSearch,
+    staleTime: 30_000,
   });
 }
 
@@ -186,7 +240,7 @@ export function useCreateCity() {
     },
     onSuccess: (_created, { stateId }) => {
       queryClient.invalidateQueries({ queryKey: ["cities", stateId] });
-      queryClient.invalidateQueries({ queryKey: ["cities", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["cities", "search"] });
       queryClient.invalidateQueries({ queryKey: ["states"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
@@ -204,7 +258,7 @@ export function useDeleteCity() {
     },
     onSuccess: (_data, { stateId }) => {
       queryClient.invalidateQueries({ queryKey: ["cities", stateId] });
-      queryClient.invalidateQueries({ queryKey: ["cities", "all"] });
+      queryClient.invalidateQueries({ queryKey: ["cities", "search"] });
       queryClient.invalidateQueries({ queryKey: ["states"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },

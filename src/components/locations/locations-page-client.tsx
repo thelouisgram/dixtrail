@@ -10,7 +10,7 @@ import {
   useDeleteLocation,
   useUpdateLocationStatus,
 } from "@/hooks/use-locations";
-import { useCountries, useStates, useCities } from "@/hooks/use-countries";
+import { useCountries, useStates, useCities, useSearchCities, useCity } from "@/hooks/use-countries";
 import { useSalesReps } from "@/hooks/use-users";
 import { useUIStore } from "@/stores/ui-store";
 import { STATUS_COLORS, STATUS_LABELS, formatContactModes } from "@/lib/constants";
@@ -65,6 +65,10 @@ function toCityFilterOptions(cities: City[]): SearchableSelectOption[] {
       description: city.state
         ? `${city.state.name}, ${city.state.country?.name ?? ""}`
         : undefined,
+      meta: {
+        stateId: city.stateId,
+        countryId: city.state?.country?.id ?? "",
+      },
     })),
   ];
 }
@@ -78,7 +82,6 @@ interface LocationFilterSelectsProps {
   setLocationFilters: ReturnType<typeof useUIStore.getState>["setLocationFilters"];
   countries: { id: string; name: string }[];
   states: { id: string; name: string }[];
-  allCities: City[];
   reps: { id: string; name: string | null }[];
   isAdmin: boolean;
   layout?: "grid" | "stack";
@@ -89,11 +92,20 @@ function LocationFilterSelects({
   setLocationFilters,
   countries,
   states,
-  allCities,
   reps,
   isAdmin,
   layout = "grid",
 }: LocationFilterSelectsProps) {
+  const [citySearch, setCitySearch] = useState("");
+  const hasStateFilter = !!locationFilters.stateId;
+  const { data: stateCities = [] } = useCities(locationFilters.stateId || undefined);
+  const { data: searchedCities = [], isFetching: citiesSearching } = useSearchCities(citySearch, {
+    countryId: locationFilters.countryId || undefined,
+    enabled: !hasStateFilter,
+  });
+  const { data: pinnedCity } = useCity(
+    locationFilters.cityId && !hasStateFilter ? locationFilters.cityId : undefined
+  );
   const containerClass =
     layout === "stack"
       ? "flex flex-col gap-3"
@@ -101,19 +113,29 @@ function LocationFilterSelects({
 
   const itemClass = "min-w-0";
 
-  const cityOptions = useMemo(() => toCityFilterOptions(allCities), [allCities]);
+  const citySource = useMemo(() => {
+    const base = hasStateFilter ? stateCities : searchedCities;
+    if (pinnedCity && !base.some((city) => city.id === pinnedCity.id)) {
+      return [pinnedCity, ...base];
+    }
+    return base;
+  }, [hasStateFilter, stateCities, searchedCities, pinnedCity]);
+
+  const cityOptions = useMemo(() => toCityFilterOptions(citySource), [citySource]);
 
   function handleCityFilterChange(selectedCityId: string) {
     if (selectedCityId === "all") {
       setLocationFilters({ cityId: "", page: 1 });
-      return;
     }
+  }
 
-    const city = allCities.find((item) => item.id === selectedCityId);
+  function handleCityOptionSelect(option: SearchableSelectOption) {
+    if (option.value === "all") return;
+
     setLocationFilters({
-      cityId: selectedCityId,
-      stateId: city?.stateId ?? "",
-      countryId: city?.state?.country?.id ?? "",
+      cityId: option.value,
+      stateId: option.meta?.stateId ?? "",
+      countryId: option.meta?.countryId ?? "",
       page: 1,
     });
   }
@@ -194,10 +216,16 @@ function LocationFilterSelects({
           portalMode="body"
           value={locationFilters.cityId || "all"}
           onValueChange={handleCityFilterChange}
+          onOptionSelect={handleCityOptionSelect}
           placeholder="City"
           searchPlaceholder="Search cities…"
           emptyMessage="No cities match your search."
+          typeToSearchMessage="Type at least 2 characters to search cities."
           options={cityOptions}
+          serverSearch={!hasStateFilter}
+          minSearchLength={hasStateFilter ? 0 : 2}
+          onSearchChange={setCitySearch}
+          isSearching={!hasStateFilter && citiesSearching}
         />
       </div>
       {isAdmin && (
@@ -269,7 +297,6 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
   }, [searchParams, setLocationFilters]);
 
   const { data: states = [] } = useStates(locationFilters.countryId || undefined);
-  const { data: allCities = [] } = useCities(undefined, { fetchAll: true });
 
   const locations: Location[] = data?.locations ?? [];
   const pagination = data?.pagination;
@@ -311,7 +338,6 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
     setLocationFilters,
     countries,
     states,
-    allCities,
     reps,
     isAdmin,
   };

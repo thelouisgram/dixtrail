@@ -33,16 +33,54 @@ export async function getStates(countryId?: string) {
   });
 }
 
-export async function getCities(stateId?: string) {
+const cityWithStateInclude = {
+  state: {
+    include: { country: true },
+  },
+} as const;
+
+export async function getCities(stateId: string) {
   return prisma.city.findMany({
-    where: stateId ? { stateId } : undefined,
+    where: { stateId },
     include: {
-      state: {
-        include: { country: true },
-      },
+      ...cityWithStateInclude,
       _count: { select: { locations: true, userAssignments: true } },
     },
     orderBy: { name: "asc" },
+  });
+}
+
+export async function getCityById(id: string) {
+  return prisma.city.findUnique({
+    where: { id },
+    include: cityWithStateInclude,
+  });
+}
+
+export async function searchCities(options: {
+  q?: string;
+  stateId?: string;
+  countryId?: string;
+  limit?: number;
+}) {
+  const { q, stateId, countryId, limit = 50 } = options;
+  const trimmed = q?.trim() ?? "";
+
+  if (!stateId && trimmed.length < 2) {
+    return [];
+  }
+
+  return prisma.city.findMany({
+    where: {
+      ...(stateId ? { stateId } : {}),
+      ...(countryId ? { state: { countryId } } : {}),
+      ...(trimmed.length >= 2
+        ? { name: { contains: trimmed, mode: "insensitive" } }
+        : {}),
+    },
+    include: cityWithStateInclude,
+    orderBy: { name: "asc" },
+    take: limit,
   });
 }
 

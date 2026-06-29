@@ -1,14 +1,40 @@
 import { NextRequest } from "next/server";
 import { Role } from "@prisma/client";
-import { withRole, type AuthedSession, type RouteContext } from "@/lib/api-route";
+import { withRole } from "@/lib/api-route";
 import { jsonOk } from "@/lib/api-response";
 import { createCitySchema } from "@/lib/validations";
-import { createCity, deleteCity, getCities } from "@/services/countries.service";
+import {
+  createCity,
+  deleteCity,
+  getCities,
+  getCityById,
+  searchCities,
+} from "@/services/countries.service";
 
 export const GET = withRole([Role.ADMIN, Role.MANAGER, Role.SALES_REP], async (request: NextRequest) => {
-  const stateId = request.nextUrl.searchParams.get("stateId") ?? undefined;
-  const cities = await getCities(stateId);
-  return jsonOk(cities);
+  const params = request.nextUrl.searchParams;
+  const id = params.get("id") ?? undefined;
+  const stateId = params.get("stateId") ?? undefined;
+  const countryId = params.get("countryId") ?? undefined;
+  const q = params.get("q") ?? undefined;
+  const limit = Math.min(Number(params.get("limit") ?? 50) || 50, 100);
+
+  if (id) {
+    const city = await getCityById(id);
+    return jsonOk(city ? [city] : []);
+  }
+
+  if (q?.trim()) {
+    const cities = await searchCities({ q, stateId, countryId, limit });
+    return jsonOk(cities);
+  }
+
+  if (stateId) {
+    const cities = await getCities(stateId);
+    return jsonOk(cities);
+  }
+
+  return jsonOk([]);
 });
 
 export const POST = withRole([Role.ADMIN, Role.MANAGER], async (request: NextRequest) => {
