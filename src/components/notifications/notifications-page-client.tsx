@@ -28,7 +28,7 @@ function NotificationIcon({ type }: { type: NotificationType }) {
 
 export function NotificationsPageClient() {
   const router = useRouter();
-  const { data, isPending, isError, refetch } = useNotifications({ limit: 50 });
+  const { data, isPending, isError, refetch } = useNotifications();
   const markRead = useMarkNotificationRead();
 
   const unreadCount = data?.unreadCount ?? 0;

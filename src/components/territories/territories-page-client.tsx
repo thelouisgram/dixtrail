@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import {
   useCountries,
   useStates,
-  useCities,
+  useSearchCities,
   useCreateCountry,
   useCreateState,
   useCreateCity,
@@ -25,6 +25,7 @@ import {
 } from "@/lib/validations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -53,10 +54,14 @@ export function TerritoriesPageClient() {
   const isFirstLoad = isInitialQueryLoad(isPending, countries);
   const [viewCountryId, setViewCountryId] = useState("");
   const [viewStateId, setViewStateId] = useState("");
+  const [citySearch, setCitySearch] = useState("");
   const { data: states = [], isPending: statesPending } = useStates(viewCountryId || undefined);
-  const { data: stateCities = [], isPending: citiesPending } = useCities(viewStateId || undefined);
+  const { data: searchedCities = [], isFetching: citiesSearching } = useSearchCities(citySearch, {
+    stateId: viewStateId || undefined,
+    enabled: !!viewStateId,
+  });
   const statesLoading = isKeyedQueryLoading(!!viewCountryId, statesPending, states);
-  const citiesLoading = isKeyedQueryLoading(!!viewStateId, citiesPending, stateCities);
+  const citiesLoading = citiesSearching;
   const createCountry = useCreateCountry();
   const createState = useCreateState();
   const createCity = useCreateCity();
@@ -144,11 +149,7 @@ export function TerritoriesPageClient() {
     });
   }
 
-  function handleDeleteCity(id: string, name: string, stateId: string, locationCount: number) {
-    if (locationCount > 0) {
-      toast.error(`Cannot delete "${name}": ${locationCount} location(s) still use it.`);
-      return;
-    }
+  function handleDeleteCity(id: string, name: string, stateId: string) {
     requestDelete({
       title: "Delete city",
       description: `Delete "${name}"? This cannot be undone.`,
@@ -374,49 +375,60 @@ export function TerritoriesPageClient() {
                                   variant="link"
                                   size="sm"
                                   className="h-auto p-0"
-                                  onClick={() =>
-                                    setViewStateId(viewStateId === state.id ? "" : state.id)
-                                  }
+                                  onClick={() => {
+                                    const next = viewStateId === state.id ? "" : state.id;
+                                    setViewStateId(next);
+                                    setCitySearch("");
+                                  }}
                                 >
                                   {viewStateId === state.id ? "Hide cities" : "View cities"}
                                 </Button>
                               </div>
                               {viewStateId === state.id && (
-                                citiesLoading ? (
-                                  <CompactListPlaceholder rows={5} />
-                                ) : stateCities.length > 0 ? (
-                                  <ul className="mt-2 space-y-1 border-t pt-2">
-                                    {stateCities.map((city) => (
-                                      <li key={city.id} className="flex items-center justify-between text-sm">
-                                        <span>{city.name}</span>
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-muted-foreground">
-                                            {city._count?.locations ?? 0} locations
-                                          </span>
+                                <div className="mt-2 space-y-2 border-t pt-2">
+                                  <SearchInput
+                                    value={citySearch}
+                                    onChange={(e) => setCitySearch(e.target.value)}
+                                    placeholder="Search cities in this province…"
+                                  />
+                                  {citiesLoading && citySearch.trim().length >= 2 && (
+                                    <CompactListPlaceholder rows={3} />
+                                  )}
+                                  {!citiesLoading && citySearch.trim().length < 2 && (
+                                    <p className="px-1 text-xs text-muted-foreground">
+                                      Type at least 2 characters to find cities ({state._count?.cities ?? 0}{" "}
+                                      total).
+                                    </p>
+                                  )}
+                                  {!citiesLoading &&
+                                    citySearch.trim().length >= 2 &&
+                                    searchedCities.length === 0 && (
+                                      <p className="px-1 text-xs text-muted-foreground">No cities match.</p>
+                                    )}
+                                  {searchedCities.length > 0 && (
+                                    <ul className="space-y-1">
+                                      {searchedCities.map((city) => (
+                                        <li
+                                          key={city.id}
+                                          className="flex items-center justify-between text-sm"
+                                        >
+                                          <span>{city.name}</span>
                                           <Button
                                             variant="ghost"
                                             size="icon"
                                             className="h-7 w-7"
+                                            disabled={deleteCity.isPending}
                                             onClick={() =>
-                                              handleDeleteCity(
-                                                city.id,
-                                                city.name,
-                                                state.id,
-                                                city._count?.locations ?? 0
-                                              )
+                                              handleDeleteCity(city.id, city.name, state.id)
                                             }
                                           >
                                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                           </Button>
-                                        </div>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <p className="mt-2 border-t pt-2 text-sm text-muted-foreground">
-                                    No cities in this province/state yet.
-                                  </p>
-                                )
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
                               )}
                             </li>
                           ))}

@@ -3,7 +3,16 @@ import prisma from "@/lib/prisma";
 import { endOfLocalDay, isFollowUpDueToday, startOfLocalDay } from "@/lib/date-utils";
 import { createNotification } from "@/services/notifications.service";
 
+const REMINDER_COOLDOWN_MS = 5 * 60 * 1000;
+let lastRunAt = 0;
+
 export async function processFollowUpReminders(referenceDate = new Date()) {
+  const now = Date.now();
+  if (now - lastRunAt < REMINDER_COOLDOWN_MS) {
+    return;
+  }
+  lastRunAt = now;
+
   const locations = await prisma.location.findMany({
     where: {
       status: LocationStatus.FOLLOW_UP,

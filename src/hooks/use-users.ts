@@ -1,8 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CreateUserInput, UpdateUserInput } from "@/lib/validations";
 import { useUIStore } from "@/stores/ui-store";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { SEARCH_DEBOUNCE_MS } from "@/lib/query-config";
 import type { Rep, UserDetail, UserRow, UsersPage } from "@/types";
 
 function buildUserParams(filters: ReturnType<typeof useUIStore.getState>["userFilters"]) {
@@ -14,10 +17,16 @@ function buildUserParams(filters: ReturnType<typeof useUIStore.getState>["userFi
 
 export function useUsers() {
   const filters = useUIStore((s) => s.userFilters);
+  const debouncedSearch = useDebouncedValue(filters.search, SEARCH_DEBOUNCE_MS);
+  const queryFilters = useMemo(
+    () => ({ ...filters, search: debouncedSearch }),
+    [filters, debouncedSearch]
+  );
+
   return useQuery({
-    queryKey: ["users", filters],
+    queryKey: ["users", queryFilters],
     queryFn: async () => {
-      const res = await fetch(`/api/users?${buildUserParams(filters)}`);
+      const res = await fetch(`/api/users?${buildUserParams(queryFilters)}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to fetch users");
       return json as UsersPage;
@@ -103,7 +112,6 @@ export function useUpdateUser() {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["users", id] });
       queryClient.invalidateQueries({ queryKey: ["reps"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Country, State, City } from "@/types";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { CITY_SEARCH_DEBOUNCE_MS } from "@/lib/query-config";
 import {
   createCountrySchema,
   createStateSchema,
@@ -157,27 +158,6 @@ export function useCreateState() {
   });
 }
 
-function useDebouncedValue<T>(value: T, delayMs: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebounced(value), delayMs);
-    return () => window.clearTimeout(timer);
-  }, [value, delayMs]);
-  return debounced;
-}
-
-export function useCities(stateId?: string) {
-  return useQuery({
-    queryKey: ["cities", stateId],
-    queryFn: async () => {
-      const res = await fetch(`/api/cities?stateId=${stateId}`);
-      if (!res.ok) throw new Error("Failed to fetch cities");
-      return res.json() as Promise<City[]>;
-    },
-    enabled: !!stateId,
-  });
-}
-
 export function useCity(cityId?: string) {
   return useQuery({
     queryKey: ["cities", "one", cityId],
@@ -200,12 +180,12 @@ export function useSearchCities(
     enabled?: boolean;
   }
 ) {
-  const debouncedQuery = useDebouncedValue(query.trim(), 300);
+  const debouncedQuery = useDebouncedValue(query.trim(), CITY_SEARCH_DEBOUNCE_MS);
   const stateId = options?.stateId;
   const countryId = options?.countryId;
   const limit = options?.limit ?? 50;
   const enabled = options?.enabled ?? true;
-  const canSearch = !!stateId || debouncedQuery.length >= 2;
+  const canSearch = debouncedQuery.length >= 2;
 
   return useQuery({
     queryKey: ["cities", "search", debouncedQuery, stateId, countryId, limit],
@@ -238,9 +218,9 @@ export function useCreateCity() {
       if (!res.ok) throw new Error(json.error ?? "Failed to create city");
       return json as City;
     },
-    onSuccess: (_created, { stateId }) => {
-      queryClient.invalidateQueries({ queryKey: ["cities", stateId] });
+    onSuccess: (_created, { stateId: _stateId }) => {
       queryClient.invalidateQueries({ queryKey: ["cities", "search"] });
+      queryClient.invalidateQueries({ queryKey: ["cities", "one"] });
       queryClient.invalidateQueries({ queryKey: ["states"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
@@ -256,9 +236,9 @@ export function useDeleteCity() {
       if (!res.ok) throw new Error(json.error ?? "Failed to delete city");
       return json;
     },
-    onSuccess: (_data, { stateId }) => {
-      queryClient.invalidateQueries({ queryKey: ["cities", stateId] });
+    onSuccess: (_data, { stateId: _stateId }) => {
       queryClient.invalidateQueries({ queryKey: ["cities", "search"] });
+      queryClient.invalidateQueries({ queryKey: ["cities", "one"] });
       queryClient.invalidateQueries({ queryKey: ["states"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },

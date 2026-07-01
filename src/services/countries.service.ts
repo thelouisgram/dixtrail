@@ -39,7 +39,7 @@ const cityWithStateInclude = {
   },
 } as const;
 
-export async function getCities(stateId: string) {
+export async function getCities(stateId: string, limit = 100) {
   return prisma.city.findMany({
     where: { stateId },
     include: {
@@ -47,6 +47,7 @@ export async function getCities(stateId: string) {
       _count: { select: { locations: true, userAssignments: true } },
     },
     orderBy: { name: "asc" },
+    take: Math.min(Math.max(limit, 1), 100),
   });
 }
 
@@ -66,17 +67,14 @@ export async function searchCities(options: {
   const { q, stateId, countryId, limit = 50 } = options;
   const trimmed = q?.trim() ?? "";
 
-  if (!stateId && trimmed.length < 2) {
+  if (trimmed.length < 2) {
     return [];
   }
-
   return prisma.city.findMany({
     where: {
       ...(stateId ? { stateId } : {}),
       ...(countryId ? { state: { countryId } } : {}),
-      ...(trimmed.length >= 2
-        ? { name: { contains: trimmed, mode: "insensitive" } }
-        : {}),
+      name: { contains: trimmed, mode: "insensitive" },
     },
     include: cityWithStateInclude,
     orderBy: { name: "asc" },
