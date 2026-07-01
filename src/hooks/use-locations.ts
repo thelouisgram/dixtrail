@@ -1,8 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CreateLocationInput, UpdateLocationInput } from "@/lib/validations";
 import { useUIStore } from "@/stores/ui-store";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { SEARCH_DEBOUNCE_MS } from "@/lib/query-config";
 import { LocationStatus } from "@prisma/client";
 import type { DashboardData, Location, LocationsPage } from "@/types";
 
@@ -76,10 +79,16 @@ function findLocationStatus(
 
 export function useLocations() {
   const filters = useUIStore((s) => s.locationFilters);
+  const debouncedSearch = useDebouncedValue(filters.search, SEARCH_DEBOUNCE_MS);
+  const queryFilters = useMemo(
+    () => ({ ...filters, search: debouncedSearch }),
+    [filters, debouncedSearch]
+  );
+
   return useQuery({
-    queryKey: ["locations", filters],
+    queryKey: ["locations", queryFilters],
     queryFn: async () => {
-      const res = await fetch(`/api/locations?${buildLocationParams(filters)}`);
+      const res = await fetch(`/api/locations?${buildLocationParams(queryFilters)}`);
       if (!res.ok) throw new Error("Failed to fetch locations");
       return res.json() as Promise<LocationsPage>;
     },
@@ -87,14 +96,16 @@ export function useLocations() {
 }
 
 export function useSearchLocations(query: string) {
+  const debouncedQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
+
   return useQuery({
-    queryKey: ["location-search", query],
+    queryKey: ["location-search", debouncedQuery],
     queryFn: async () => {
-      const res = await fetch(`/api/locations/search?q=${encodeURIComponent(query)}`);
+      const res = await fetch(`/api/locations/search?q=${encodeURIComponent(debouncedQuery)}`);
       if (!res.ok) throw new Error("Failed to search locations");
       return res.json() as Promise<Location[]>;
     },
-    enabled: query.length >= 2,
+    enabled: debouncedQuery.length >= 2,
   });
 }
 
@@ -170,7 +181,6 @@ export function useCreateLocation() {
       queryClient.invalidateQueries({ queryKey: ["locations"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["countries"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }
@@ -205,8 +215,6 @@ export function useUpdateLocation() {
     },
     onSuccess: (updated) => {
       updateLocationInCache(queryClient, updated.id, () => updated);
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }
@@ -258,7 +266,6 @@ export function useUpdateLocationStatus() {
         const recent = old.recentLocations.filter((l) => l.id !== updated.id);
         return { ...old, recentLocations: [updated, ...recent].slice(0, 5) };
       });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
 }

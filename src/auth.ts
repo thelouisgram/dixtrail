@@ -20,6 +20,8 @@ class InvalidCredentials extends CredentialsSignin {
   code = "invalid_credentials";
 }
 
+const ROLE_REFRESH_MS = 15 * 60 * 1000;
+
 export const { auth, signIn, signOut, handlers } = NextAuth({
   ...authConfig,
   callbacks: {
@@ -28,10 +30,14 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.roleCheckedAt = Date.now();
         return token;
       }
 
-      if (token.id) {
+      const checkedAt = token.roleCheckedAt as number | undefined;
+      const roleStale = !checkedAt || Date.now() - checkedAt > ROLE_REFRESH_MS;
+
+      if (token.id && roleStale) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
           select: { id: true, role: true },
@@ -42,6 +48,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
         }
 
         token.role = dbUser.role;
+        token.roleCheckedAt = Date.now();
       }
 
       return token;

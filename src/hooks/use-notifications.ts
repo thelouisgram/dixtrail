@@ -1,21 +1,25 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { NOTIFICATIONS_REFETCH_MS } from "@/lib/query-config";
 import type { NotificationsData } from "@/types";
 
-export function useNotifications(options?: { limit?: number }) {
-  const limit = options?.limit ?? 20;
+const NOTIFICATIONS_QUERY_KEY = ["notifications"] as const;
+const NOTIFICATIONS_FETCH_LIMIT = 50;
+
+export function useNotifications() {
   return useQuery({
-    queryKey: ["notifications", limit],
+    queryKey: NOTIFICATIONS_QUERY_KEY,
     queryFn: async (): Promise<NotificationsData> => {
-      const res = await fetch(`/api/notifications?limit=${limit}`);
+      const res = await fetch(`/api/notifications?limit=${NOTIFICATIONS_FETCH_LIMIT}`);
       if (!res.ok) {
         return { notifications: [], unreadCount: 0 };
       }
       return res.json();
     },
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: true,
+    refetchInterval: NOTIFICATIONS_REFETCH_MS,
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
     retry: 1,
   });
 }
@@ -34,12 +38,10 @@ export function useMarkNotificationRead() {
       return json;
     },
     onMutate: async (input) => {
-      await queryClient.cancelQueries({ queryKey: ["notifications"] });
-      const previousEntries = queryClient.getQueriesData<NotificationsData>({
-        queryKey: ["notifications"],
-      });
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+      const previous = queryClient.getQueryData<NotificationsData>(NOTIFICATIONS_QUERY_KEY);
 
-      queryClient.setQueriesData<NotificationsData>({ queryKey: ["notifications"] }, (old) => {
+      queryClient.setQueryData<NotificationsData>(NOTIFICATIONS_QUERY_KEY, (old) => {
         if (!old) return old;
         if (input.markAll) {
           return {
@@ -59,15 +61,10 @@ export function useMarkNotificationRead() {
         return old;
       });
 
-      return { previousEntries };
+      return { previous };
     },
     onError: (_err, _input, context) => {
-      context?.previousEntries?.forEach(([key, data]) => {
-        queryClient.setQueryData(key, data);
-      });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.setQueryData(NOTIFICATIONS_QUERY_KEY, context?.previous);
     },
   });
 }

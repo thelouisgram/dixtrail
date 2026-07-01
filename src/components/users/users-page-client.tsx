@@ -48,8 +48,12 @@ interface UsersPageClientProps {
 
 export function UsersPageClient({ currentUserId, userRole }: UsersPageClientProps) {
   const { data, isPending, isError, refetch } = useUsers();
-  const { setUserModalOpen, setEditUserId, setUserDetailId, setAssignCitiesUserId, userFilters, setUserFilters } =
-    useUIStore();
+  const setUserModalOpen = useUIStore((s) => s.setUserModalOpen);
+  const setEditUserId = useUIStore((s) => s.setEditUserId);
+  const setUserDetailId = useUIStore((s) => s.setUserDetailId);
+  const setAssignCitiesUserId = useUIStore((s) => s.setAssignCitiesUserId);
+  const userFilters = useUIStore((s) => s.userFilters);
+  const setUserFilters = useUIStore((s) => s.setUserFilters);
   const deleteUser = useDeleteUser();
   const { requestDelete, ConfirmDeleteDialog } = useConfirmDelete();
 

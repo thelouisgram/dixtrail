@@ -6,7 +6,6 @@ import { createCitySchema } from "@/lib/validations";
 import {
   createCity,
   deleteCity,
-  getCities,
   getCityById,
   searchCities,
 } from "@/services/countries.service";
@@ -26,11 +25,6 @@ export const GET = withRole([Role.ADMIN, Role.MANAGER, Role.SALES_REP], async (r
 
   if (q?.trim()) {
     const cities = await searchCities({ q, stateId, countryId, limit });
-    return jsonOk(cities);
-  }
-
-  if (stateId) {
-    const cities = await getCities(stateId);
     return jsonOk(cities);
   }
 

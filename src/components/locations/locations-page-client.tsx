@@ -10,7 +10,7 @@ import {
   useDeleteLocation,
   useUpdateLocationStatus,
 } from "@/hooks/use-locations";
-import { useCountries, useStates, useCities, useSearchCities, useCity } from "@/hooks/use-countries";
+import { useCountries, useStates, useSearchCities, useCity } from "@/hooks/use-countries";
 import { useSalesReps } from "@/hooks/use-users";
 import { useUIStore } from "@/stores/ui-store";
 import { STATUS_COLORS, STATUS_LABELS, formatContactModes } from "@/lib/constants";
@@ -97,15 +97,11 @@ function LocationFilterSelects({
   layout = "grid",
 }: LocationFilterSelectsProps) {
   const [citySearch, setCitySearch] = useState("");
-  const hasStateFilter = !!locationFilters.stateId;
-  const { data: stateCities = [] } = useCities(locationFilters.stateId || undefined);
   const { data: searchedCities = [], isFetching: citiesSearching } = useSearchCities(citySearch, {
+    stateId: locationFilters.stateId || undefined,
     countryId: locationFilters.countryId || undefined,
-    enabled: !hasStateFilter,
   });
-  const { data: pinnedCity } = useCity(
-    locationFilters.cityId && !hasStateFilter ? locationFilters.cityId : undefined
-  );
+  const { data: pinnedCity } = useCity(locationFilters.cityId || undefined);
   const containerClass =
     layout === "stack"
       ? "flex flex-col gap-3"
@@ -114,12 +110,12 @@ function LocationFilterSelects({
   const itemClass = "min-w-0";
 
   const citySource = useMemo(() => {
-    const base = hasStateFilter ? stateCities : searchedCities;
+    const base = searchedCities;
     if (pinnedCity && !base.some((city) => city.id === pinnedCity.id)) {
       return [pinnedCity, ...base];
     }
     return base;
-  }, [hasStateFilter, stateCities, searchedCities, pinnedCity]);
+  }, [searchedCities, pinnedCity]);
 
   const cityOptions = useMemo(() => toCityFilterOptions(citySource), [citySource]);
 
@@ -222,10 +218,10 @@ function LocationFilterSelects({
           emptyMessage="No cities match your search."
           typeToSearchMessage="Type at least 2 characters to search cities."
           options={cityOptions}
-          serverSearch={!hasStateFilter}
-          minSearchLength={hasStateFilter ? 0 : 2}
+          serverSearch
+          minSearchLength={2}
           onSearchChange={setCitySearch}
-          isSearching={!hasStateFilter && citiesSearching}
+          isSearching={citiesSearching}
         />
       </div>
       {isAdmin && (
@@ -272,13 +268,11 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
   const { requestDelete, ConfirmDeleteDialog } = useConfirmDelete();
   const { data: countries = [] } = useCountries();
   const { data: reps = [] } = useSalesReps();
-  const {
-    locationFilters,
-    setLocationFilters,
-    setLocationModalOpen,
-    setSelectedLocationId,
-    selectedLocationId,
-  } = useUIStore();
+  const locationFilters = useUIStore((s) => s.locationFilters);
+  const setLocationFilters = useUIStore((s) => s.setLocationFilters);
+  const setLocationModalOpen = useUIStore((s) => s.setLocationModalOpen);
+  const setSelectedLocationId = useUIStore((s) => s.setSelectedLocationId);
+  const selectedLocationId = useUIStore((s) => s.selectedLocationId);
 
   useEffect(() => {
     const status = searchParams.get("status");
