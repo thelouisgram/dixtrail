@@ -112,6 +112,13 @@ export function LoginForm() {
           )}
 
           <SignInButton status={status} shake={shakeButton} />
+
+          <p className="text-center text-xs text-muted-foreground">
+            Stuck on a redirect error?{" "}
+            <a href="/clear-session" className="font-medium text-primary underline-offset-4 hover:underline">
+              Clear session
+            </a>
+          </p>
         </form>
       </CardContent>
     </Card>

@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from 'next-auth';
+import { CLEAR_SESSION_PATH } from '@/lib/auth-utils';
 
 export const authConfig = {
   trustHost: true,
@@ -8,14 +9,23 @@ export const authConfig = {
   session: { strategy: 'jwt' },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
+      const pathname = nextUrl.pathname;
       const hasValidSession = !!(auth?.user?.id && auth?.user?.role);
-      const isOnDashboard = nextUrl.pathname.startsWith('/dashboard');
+
+      if (pathname === CLEAR_SESSION_PATH) {
+        return true;
+      }
+
+      const isOnDashboard = pathname.startsWith('/dashboard');
       if (isOnDashboard) {
         if (hasValidSession) return true;
-        return false; // Redirect unauthenticated users to login page
-      } else if (hasValidSession && (nextUrl.pathname === '/login' || nextUrl.pathname === '/')) {
+        return false;
+      }
+
+      if (hasValidSession && (pathname === '/login' || pathname === '/')) {
         return Response.redirect(new URL('/dashboard', nextUrl));
       }
+
       return true;
     },
     jwt({ token, user }) {

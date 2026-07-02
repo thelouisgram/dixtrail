@@ -38,23 +38,27 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
       const roleStale = !checkedAt || Date.now() - checkedAt > ROLE_REFRESH_MS;
 
       if (token.id && roleStale) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: { id: true, role: true },
-        });
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { id: true, role: true },
+          });
 
-        if (!dbUser) {
-          return null;
+          if (!dbUser) {
+            return null;
+          }
+
+          token.role = dbUser.role;
+          token.roleCheckedAt = Date.now();
+        } catch (error) {
+          console.error("JWT role refresh failed — keeping existing token:", error);
         }
-
-        token.role = dbUser.role;
-        token.roleCheckedAt = Date.now();
       }
 
       return token;
     },
     session({ session, token }) {
-      if (!token?.id || !session.user) {
+      if (!token?.id || !token?.role || !session.user) {
         return session;
       }
       session.user.id = token.id as string;
