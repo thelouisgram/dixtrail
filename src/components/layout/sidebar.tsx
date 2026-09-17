@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import {
   LayoutDashboard,
   MapPin,
+  Building2,
   Users,
   Globe,
   Menu,
@@ -22,6 +23,7 @@ import { signOut } from "next-auth/react";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/locations", label: "Locations", icon: MapPin },
+  { href: "/dashboard/venues", label: "6ixClubs Venues", icon: Building2 },
   { href: "/dashboard/notifications", label: "Notifications", isNotifications: true },
   { href: "/dashboard/users", label: "Users", icon: Users, adminOnly: true },
   { href: "/dashboard/territories", label: "Territories", icon: Globe, adminOnly: true },

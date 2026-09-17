@@ -1,4 +1,11 @@
-import { LocationStatus, Role, ContactMode } from "@prisma/client";
+import {
+  LocationStatus,
+  Role,
+  ContactMode,
+  VenueType,
+  SixClubsRelationship,
+  VendingPlacementStatus,
+} from "@prisma/client";
 
 export const APP_NAME = "Dixtrail";
 
@@ -60,4 +67,40 @@ export const ACTIVITY_LABELS: Record<string, string> = {
   LOCATION_STATUS_CHANGED: "Status changed",
   LOCATION_ASSIGNED: "Assignment changed",
   LOCATION_DELETED: "Deleted location",
+};
+
+export const VENUE_TYPE_LABELS: Record<VenueType, string> = {
+  NIGHTCLUB: "Nightclub",
+  BAR: "Bar",
+  LOUNGE: "Lounge",
+  RESTAURANT: "Restaurant",
+  EVENT_SPACE: "Event Space",
+  FESTIVAL: "Festival",
+  OTHER: "Other",
+};
+
+export const SIXCLUBS_RELATIONSHIP_LABELS: Record<SixClubsRelationship, string> = {
+  HOSTS: "Hosts Events",
+  PROMOTES: "Promotes Events",
+  STRONG_RELATIONSHIP: "Strong Relationship",
+  PROSPECT: "Prospect",
+  NONE: "None",
+};
+
+export const VENDING_PLACEMENT_STATUS_LABELS: Record<VendingPlacementStatus, string> = {
+  NOT_CONTACTED: "Not Contacted",
+  IN_DISCUSSION: "In Discussion",
+  AGREED: "Agreed",
+  INSTALLED: "Installed",
+  DECLINED: "Declined",
+  ON_HOLD: "On Hold",
+};
+
+export const VENDING_PLACEMENT_STATUS_COLORS: Record<VendingPlacementStatus, string> = {
+  NOT_CONTACTED: "bg-slate-100 text-slate-700",
+  IN_DISCUSSION: "bg-blue-100 text-blue-700",
+  AGREED: "bg-purple-100 text-purple-700",
+  INSTALLED: "bg-green-100 text-green-800",
+  DECLINED: "bg-red-100 text-red-700",
+  ON_HOLD: "bg-amber-100 text-amber-700",
 };

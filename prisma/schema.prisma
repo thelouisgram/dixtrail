@@ -43,6 +43,33 @@ enum NotificationType {
   FOLLOW_UP_DUE
 }
 
+enum VenueType {
+  NIGHTCLUB
+  BAR
+  LOUNGE
+  RESTAURANT
+  EVENT_SPACE
+  FESTIVAL
+  OTHER
+}
+
+enum SixClubsRelationship {
+  HOSTS
+  PROMOTES
+  STRONG_RELATIONSHIP
+  PROSPECT
+  NONE
+}
+
+enum VendingPlacementStatus {
+  NOT_CONTACTED
+  IN_DISCUSSION
+  AGREED
+  INSTALLED
+  DECLINED
+  ON_HOLD
+}
+
 model User {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   name      String?
@@ -54,6 +81,8 @@ model User {
 
   assignedLocations Location[]     @relation("AssignedRep")
   createdLocations  Location[]     @relation("CreatedBy")
+  ownedVenues       Venue[]        @relation("VenueOwner")
+  createdVenues     Venue[]        @relation("VenueCreatedBy")
   assignedCities    UserCity[]
   activities        Activity[]
   notifications     Notification[]
@@ -66,6 +95,7 @@ model Country {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   locations Location[]
+  venues    Venue[]
 }
 
 model State {
@@ -77,6 +107,7 @@ model State {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   locations Location[]
+  venues    Venue[]
 
   @@unique([name, countryId])
 }
@@ -89,6 +120,7 @@ model City {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   locations Location[]
+  venues    Venue[]
   userAssignments UserCity[]
   notifications   Notification[]
 
@@ -168,4 +200,40 @@ model Notification {
 
   @@index([userId, read])
   @@index([userId, createdAt])
+}
+
+model Venue {
+  id                     String                 @id @default(auto()) @map("_id") @db.ObjectId
+  name                   String
+  normalizedName         String
+  countryId              String                 @db.ObjectId
+  country                Country                @relation(fields: [countryId], references: [id])
+  stateId                String                 @db.ObjectId
+  state                  State                  @relation(fields: [stateId], references: [id])
+  cityId                 String?                @db.ObjectId
+  city                   City?                  @relation(fields: [cityId], references: [id])
+  address                String?
+  venueType              VenueType
+  decisionMakerName      String?
+  decisionMakerEmail     String?
+  decisionMakerPhone     String?
+  sixClubsRelationship   SixClubsRelationship   @default(NONE)
+  eventsPerMonth         Int?
+  approximateAttendance  Int?
+  vendingPlacementStatus VendingPlacementStatus @default(NOT_CONTACTED)
+  nextAction             String?
+  nextActionDate         DateTime?
+  ownerId                String?                @db.ObjectId
+  owner                  User?                  @relation("VenueOwner", fields: [ownerId], references: [id])
+  createdById            String                 @db.ObjectId
+  createdBy              User                   @relation("VenueCreatedBy", fields: [createdById], references: [id])
+  notes                  String?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  @@index([normalizedName])
+  @@index([ownerId])
+  @@index([cityId])
+  @@index([vendingPlacementStatus])
+  @@index([sixClubsRelationship])
 }
