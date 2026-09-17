@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { LocationStatus, Role, ContactMode } from "@prisma/client";
+import {
+  LocationStatus,
+  Role,
+  ContactMode,
+  VenueType,
+  SixClubsRelationship,
+  VendingPlacementStatus,
+} from "@prisma/client";
 
 const requiredObjectId = (label: string) =>
   z
@@ -208,6 +215,149 @@ export type CreateLocationInput = z.infer<typeof createLocationSchema>;
 export type UpdateLocationInput = z.infer<typeof updateLocationSchema>;
 export type LocationQueryInput = z.infer<typeof locationQuerySchema>;
 export type UserQueryInput = z.infer<typeof userQuerySchema>;
+
+const optionalPositiveInt = z
+  .number()
+  .int()
+  .positive()
+  .optional()
+  .nullable();
+
+function parseOptionalPositiveInt(value?: string | number | null) {
+  if (value === "" || value === null || value === undefined) return undefined;
+  const num = typeof value === "number" ? value : Number(value);
+  if (Number.isNaN(num) || num <= 0) return undefined;
+  return num;
+}
+
+/** Client-side venue form */
+export const venueFormSchema = z.object({
+  name: z.string().trim().min(1, "Venue name is required"),
+  countryId: z.string().min(1, "Country is required"),
+  stateId: z.string().min(1, "Province/State is required"),
+  cityId: requiredObjectId("City"),
+  address: z.string().optional(),
+  venueType: z.nativeEnum(VenueType),
+  decisionMakerName: z.string().optional(),
+  decisionMakerEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
+  decisionMakerPhone: z.string().optional(),
+  sixClubsRelationship: z.nativeEnum(SixClubsRelationship),
+  eventsPerMonth: z.string().optional(),
+  approximateAttendance: z.string().optional(),
+  vendingPlacementStatus: z.nativeEnum(VendingPlacementStatus),
+  nextAction: z.string().optional(),
+  nextActionDate: z.string().optional(),
+  ownerId: z.string().nullable().optional(),
+  notes: z.string().optional(),
+});
+
+/** API: create venue */
+export const createVenueSchema = z.object({
+  name: z.string().trim().min(1, "Venue name is required"),
+  countryId: requiredObjectId("Country"),
+  stateId: requiredObjectId("Province/State"),
+  cityId: requiredObjectId("City"),
+  address: z.string().trim().optional(),
+  venueType: z.nativeEnum(VenueType),
+  decisionMakerName: z.string().trim().optional(),
+  decisionMakerEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
+  decisionMakerPhone: z.string().trim().optional(),
+  sixClubsRelationship: z.nativeEnum(SixClubsRelationship).optional(),
+  eventsPerMonth: optionalPositiveInt,
+  approximateAttendance: optionalPositiveInt,
+  vendingPlacementStatus: z.nativeEnum(VendingPlacementStatus).optional(),
+  nextAction: z.string().trim().optional(),
+  nextActionDate: z.string().optional(),
+  ownerId: z
+    .string()
+    .regex(/^[a-f\d]{24}$/i)
+    .optional(),
+  notes: z.string().trim().optional(),
+});
+
+/** API: update venue */
+export const updateVenueSchema = z.object({
+  name: z.string().trim().min(1).optional(),
+  countryId: requiredObjectId("Country").optional(),
+  stateId: requiredObjectId("Province/State").optional(),
+  cityId: z
+    .string()
+    .regex(/^[a-f\d]{24}$/i, "Select a valid city")
+    .nullable()
+    .optional(),
+  address: z.string().trim().nullable().optional(),
+  venueType: z.nativeEnum(VenueType).optional(),
+  decisionMakerName: z.string().trim().nullable().optional(),
+  decisionMakerEmail: z.string().email("Invalid email address").nullable().optional().or(z.literal("")),
+  decisionMakerPhone: z.string().trim().nullable().optional(),
+  sixClubsRelationship: z.nativeEnum(SixClubsRelationship).optional(),
+  eventsPerMonth: optionalPositiveInt,
+  approximateAttendance: optionalPositiveInt,
+  vendingPlacementStatus: z.nativeEnum(VendingPlacementStatus).optional(),
+  nextAction: z.string().trim().nullable().optional(),
+  nextActionDate: z.string().nullable().optional(),
+  ownerId: z
+    .string()
+    .regex(/^[a-f\d]{24}$/i)
+    .nullable()
+    .optional(),
+  notes: z.string().trim().nullable().optional(),
+});
+
+export const venueQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  search: z.string().optional(),
+  venueType: z.nativeEnum(VenueType).optional(),
+  sixClubsRelationship: z.nativeEnum(SixClubsRelationship).optional(),
+  vendingPlacementStatus: z.nativeEnum(VendingPlacementStatus).optional(),
+  countryId: z.string().optional(),
+  stateId: z.string().optional(),
+  cityId: z.string().optional(),
+  ownerId: z.string().optional(),
+  mineOnly: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
+});
+
+export type VenueFormInput = z.infer<typeof venueFormSchema>;
+export type CreateVenueInput = z.infer<typeof createVenueSchema>;
+export type UpdateVenueInput = z.infer<typeof updateVenueSchema>;
+export type VenueQueryInput = z.infer<typeof venueQuerySchema>;
+
+export function toCreateVenuePayload(data: VenueFormInput): CreateVenueInput {
+  return createVenueSchema.parse({
+    ...data,
+    address: data.address?.trim() || undefined,
+    notes: data.notes?.trim() || undefined,
+    decisionMakerName: data.decisionMakerName?.trim() || undefined,
+    decisionMakerEmail: data.decisionMakerEmail?.trim() || undefined,
+    decisionMakerPhone: data.decisionMakerPhone?.trim() || undefined,
+    nextAction: data.nextAction?.trim() || undefined,
+    nextActionDate: data.nextActionDate || undefined,
+    ownerId: data.ownerId || undefined,
+    eventsPerMonth: parseOptionalPositiveInt(data.eventsPerMonth),
+    approximateAttendance: parseOptionalPositiveInt(data.approximateAttendance),
+  });
+}
+
+export function toUpdateVenuePayload(data: VenueFormInput): UpdateVenueInput {
+  return updateVenueSchema.parse({
+    ...data,
+    address: data.address?.trim() || null,
+    notes: data.notes?.trim() || null,
+    decisionMakerName: data.decisionMakerName?.trim() || null,
+    decisionMakerEmail: data.decisionMakerEmail?.trim() || null,
+    decisionMakerPhone: data.decisionMakerPhone?.trim() || null,
+    nextAction: data.nextAction?.trim() || null,
+    nextActionDate: data.nextActionDate || null,
+    ownerId: data.ownerId ?? null,
+    cityId: data.cityId,
+    eventsPerMonth: parseOptionalPositiveInt(data.eventsPerMonth) ?? null,
+    approximateAttendance: parseOptionalPositiveInt(data.approximateAttendance) ?? null,
+  });
+}
 
 /** Normalize form values before API submission */
 export function toCreateLocationPayload(data: LocationFormInput): CreateLocationInput {

@@ -1,4 +1,13 @@
-import { LocationStatus, Role, ContactMode, ActivityType, NotificationType } from "@prisma/client";
+import {
+  LocationStatus,
+  Role,
+  ContactMode,
+  ActivityType,
+  NotificationType,
+  VenueType,
+  SixClubsRelationship,
+  VendingPlacementStatus,
+} from "@prisma/client";
 
 export type UserRow = {
   id: string;
@@ -139,4 +148,39 @@ export type NotificationItem = {
 export type NotificationsData = {
   notifications: NotificationItem[];
   unreadCount: number;
+};
+
+export type Venue = {
+  id: string;
+  name: string;
+  normalizedName?: string;
+  countryId: string;
+  stateId: string;
+  cityId?: string | null;
+  country: { id: string; name: string };
+  state: { id: string; name: string };
+  city?: { id: string; name: string } | null;
+  address?: string | null;
+  venueType: VenueType;
+  decisionMakerName?: string | null;
+  decisionMakerEmail?: string | null;
+  decisionMakerPhone?: string | null;
+  sixClubsRelationship: SixClubsRelationship;
+  eventsPerMonth?: number | null;
+  approximateAttendance?: number | null;
+  vendingPlacementStatus: VendingPlacementStatus;
+  nextAction?: string | null;
+  nextActionDate?: string | null;
+  ownerId?: string | null;
+  owner?: { id: string; name: string | null; email?: string } | null;
+  createdById?: string;
+  createdBy?: { id: string; name: string | null; email?: string } | null;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type VenuesPage = {
+  venues: Venue[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
 };
