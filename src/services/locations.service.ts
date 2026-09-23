@@ -10,6 +10,12 @@ import { logActivity } from "@/services/activities.service";
 import { notifyLocationAssignment } from "@/services/notifications.service";
 import { STATUS_LABELS } from "@/lib/constants";
 import { parseDateInput } from "@/lib/date-utils";
+import {
+  canSeeLocations,
+  isAdminOrManager,
+  seesOnlyOwnLocations,
+  type AccessUser,
+} from "@/lib/access";
 
 const locationInclude = {
   country: true,
@@ -33,6 +39,30 @@ export async function getSalesRepLocationFilter(userId: string) {
   }
 
   return { OR: or };
+}
+
+function assertCanSeeLocations(viewer: AccessUser) {
+  if (!canSeeLocations(viewer)) {
+    throw new Error("Forbidden");
+  }
+}
+
+function locationAccessScope(viewer: AccessUser) {
+  assertCanSeeLocations(viewer);
+  if (seesOnlyOwnLocations(viewer)) {
+    return { assignedRepId: viewer.id };
+  }
+  return null;
+}
+
+async function assertLocationVisible(id: string, viewer: AccessUser) {
+  assertCanSeeLocations(viewer);
+  if (!seesOnlyOwnLocations(viewer)) return;
+  const location = await prisma.location.findFirst({
+    where: { id, assignedRepId: viewer.id },
+    select: { id: true },
+  });
+  if (!location) throw new Error("Forbidden");
 }
 
 function combineWhere(
@@ -79,16 +109,14 @@ function buildLocationWhere(query: LocationQueryInput) {
   return where;
 }
 
-export async function getLocations(
-  query: LocationQueryInput,
-  userId: string,
-  role: Role
-) {
+export async function getLocations(query: LocationQueryInput, viewer: AccessUser) {
   const filters = buildLocationWhere(query);
+  const ownScope = locationAccessScope(viewer);
   const accessScope =
-    role === Role.SALES_REP && query.mineOnly
-      ? await getSalesRepLocationFilter(userId)
-      : null;
+    ownScope ??
+    (viewer.role === Role.SALES_REP && query.mineOnly
+      ? await getSalesRepLocationFilter(viewer.id)
+      : null);
   const where = combineWhere(filters, accessScope);
   const skip = (query.page - 1) * query.limit;
 
@@ -114,22 +142,24 @@ export async function getLocations(
   };
 }
 
-export async function searchLocationsByName(query: string) {
+export async function searchLocationsByName(query: string, viewer: AccessUser) {
   const normalized = normalizeEventName(query);
   if (!normalized) return [];
 
+  const accessScope = locationAccessScope(viewer);
+  const where = combineWhere({ normalizedEventName: { contains: normalized } }, accessScope);
+
   return prisma.location.findMany({
-    where: { normalizedEventName: { contains: normalized } },
+    where,
     include: locationInclude,
     take: 10,
   });
 }
 
-export async function createLocation(
-  data: CreateLocationInput,
-  userId: string,
-  role: Role
-) {
+export async function createLocation(data: CreateLocationInput, viewer: AccessUser) {
+  assertCanSeeLocations(viewer);
+  const userId = viewer.id;
+  const role = viewer.role;
   await assertStateInCountry(data.stateId, data.countryId);
   await assertCityInState(data.cityId, data.stateId);
 
@@ -202,9 +232,11 @@ export async function createLocation(
 export async function updateLocation(
   id: string,
   data: UpdateLocationInput,
-  userId: string,
-  role: Role
+  viewer: AccessUser
 ) {
+  await assertLocationVisible(id, viewer);
+  const userId = viewer.id;
+  const role = viewer.role;
   const location = await prisma.location.findUnique({ where: { id } });
   if (!location) throw new Error("Location not found");
 
@@ -332,10 +364,11 @@ export async function updateLocation(
   return updated;
 }
 
-export async function deleteLocation(id: string, userId: string, role: Role) {
-  if (role !== Role.ADMIN && role !== Role.MANAGER) {
+export async function deleteLocation(id: string, viewer: AccessUser) {
+  if (!isAdminOrManager(viewer.role)) {
     throw new Error("Only admins and managers can delete locations");
   }
+  const userId = viewer.id;
 
   const location = await prisma.location.findUnique({ where: { id } });
   if (!location) throw new Error("Location not found");

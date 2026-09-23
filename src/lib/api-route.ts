@@ -7,7 +7,14 @@ import { handleApiError } from "@/lib/api-response";
 export type RouteContext = { params: Promise<Record<string, string>> };
 
 export type AuthedSession = Session & {
-  user: { id: string; role: string; name?: string | null; email?: string | null };
+  user: {
+    id: string;
+    role: string;
+    isSixClub: boolean;
+    isIndependent: boolean;
+    name?: string | null;
+    email?: string | null;
+  };
 };
 
 type AuthedHandler = (

@@ -1,7 +1,15 @@
 import prisma from "@/lib/prisma";
-import { LocationStatus, Role } from "@prisma/client";
-import type { DashboardData, Location } from "@/types";
-import { getSalesRepLocationFilter } from "@/services/locations.service";
+import { LocationStatus } from "@prisma/client";
+import type { DashboardData, DashboardVenue, Location } from "@/types";
+import {
+  canSeeLocations,
+  canSeeVenues,
+  isAdminOrManager,
+  seesOnlyOwnLocations,
+  seesOnlyOwnVenues,
+  type AccessUser,
+} from "@/lib/access";
+import { computeTheirCut } from "@/lib/money";
 
 function serializeLocation<T extends {
   reachedOutDate?: Date | null;
@@ -18,57 +26,109 @@ function serializeLocation<T extends {
   };
 }
 
-export async function getDashboardStats(userId: string, role: Role): Promise<DashboardData> {
-  const scope =
-    role === Role.SALES_REP ? await getSalesRepLocationFilter(userId) : {};
-
-  const [total, byStatus, recent] = await Promise.all([
-    prisma.location.count({ where: scope }),
-    prisma.location.groupBy({
-      by: ["status"],
-      where: scope,
-      _count: { status: true },
-    }),
-    prisma.location.findMany({
-      where: scope,
-      include: {
-        country: true,
-        state: true,
-        city: true,
-        assignedRep: { select: { id: true, name: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-      take: 5,
-    }),
-  ]);
-
-  const statusCounts = Object.values(LocationStatus).reduce(
+function emptyStatusCounts() {
+  return Object.values(LocationStatus).reduce(
     (acc, status) => {
       acc[status] = 0;
       return acc;
     },
     {} as Record<LocationStatus, number>
   );
+}
 
-  byStatus.forEach((item) => {
-    statusCounts[item.status] = item._count.status;
-  });
+export async function getDashboardStats(viewer: AccessUser): Promise<DashboardData> {
+  const showLocations = canSeeLocations(viewer);
+  const showVenues = canSeeVenues(viewer);
+  const view: DashboardData["view"] = showLocations && showVenues
+    ? "both"
+    : showVenues
+      ? "venues"
+      : "locations";
+  const ownOnly = seesOnlyOwnLocations(viewer) || seesOnlyOwnVenues(viewer);
+  const locationWhere = seesOnlyOwnLocations(viewer) ? { assignedRepId: viewer.id } : {};
 
-  const [totalUsers, totalCountries, totalStates] =
-    role === Role.ADMIN || role === Role.MANAGER
-      ? await Promise.all([
-          prisma.user.count(),
-          prisma.country.count(),
-          prisma.state.count(),
-        ])
-      : [0, 0, 0];
+  const [total, byStatus, recent] = showLocations
+    ? await Promise.all([
+        prisma.location.count({ where: locationWhere }),
+        prisma.location.groupBy({
+          by: ["status"],
+          where: locationWhere,
+          _count: { status: true },
+        }),
+        prisma.location.findMany({
+          where: locationWhere,
+          include: {
+            country: true,
+            state: true,
+            city: true,
+            assignedRep: { select: { id: true, name: true } },
+          },
+          orderBy: { updatedAt: "desc" },
+          take: 5,
+        }),
+      ])
+    : [0, [] as { status: LocationStatus; _count: { status: number } }[], []];
+
+  const statusCounts = emptyStatusCounts();
+  if (Array.isArray(byStatus)) {
+    byStatus.forEach((item) => {
+      statusCounts[item.status] = item._count.status;
+    });
+  }
+
+  const [totalUsers, totalCountries, totalStates] = isAdminOrManager(viewer.role)
+    ? await Promise.all([
+        prisma.user.count(),
+        prisma.country.count(),
+        prisma.state.count(),
+      ])
+    : [0, 0, 0];
+
+  const venueWhere = seesOnlyOwnVenues(viewer) ? { createdById: viewer.id } : {};
+  const venueRows = showVenues
+    ? await prisma.venue.findMany({
+        where: venueWhere,
+        select: {
+          id: true,
+          name: true,
+          cutPercentage: true,
+          grossRevenue: true,
+          theirCut: true,
+          city: { select: { name: true } },
+        },
+        orderBy: { updatedAt: "desc" },
+      })
+    : [];
+
+  const recentVenues: DashboardVenue[] = venueRows.slice(0, 5).map((venue) => ({
+    id: venue.id,
+    name: venue.name,
+    cityName: venue.city?.name ?? null,
+    cutPercentage: venue.cutPercentage ?? 0,
+    grossRevenue: venue.grossRevenue ?? 0,
+    theirCut: computeTheirCut(venue.grossRevenue ?? 0, venue.cutPercentage ?? 0),
+  }));
+
+  const totalGrossRevenue = venueRows.reduce((sum, venue) => sum + (venue.grossRevenue ?? 0), 0);
+  const totalTheirCut = venueRows.reduce(
+    (sum, venue) => sum + computeTheirCut(venue.grossRevenue ?? 0, venue.cutPercentage ?? 0),
+    0
+  );
 
   return {
-    totalLocations: total,
+    view,
+    ownOnly,
+    totalLocations: typeof total === "number" ? total : 0,
     statusCounts,
-    recentLocations: recent.map((loc) => serializeLocation(loc)) as Location[],
+    recentLocations: (Array.isArray(recent) ? recent : []).map((loc) =>
+      serializeLocation(loc)
+    ) as Location[],
     totalUsers,
     totalCountries,
     totalStates,
+    totalVenues: venueRows.length,
+    totalGrossRevenue,
+    totalTheirCut,
+    recentVenues,
   };
 }

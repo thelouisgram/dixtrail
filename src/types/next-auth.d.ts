@@ -5,12 +5,16 @@ declare module 'next-auth' {
     user: {
       id: string;
       role: string;
+      isSixClub: boolean;
+      isIndependent: boolean;
     } & DefaultSession['user'];
   }
 
   interface User {
     id: string;
     role: string;
+    isSixClub?: boolean;
+    isIndependent?: boolean;
   }
 }
 
@@ -18,5 +22,7 @@ declare module 'next-auth/jwt' {
   interface JWT {
     id: string;
     role: string;
+    isSixClub?: boolean;
+    isIndependent?: boolean;
   }
 }

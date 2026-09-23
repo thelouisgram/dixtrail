@@ -14,8 +14,8 @@ import {
   useUpdateVenuePlacementStatus,
 } from "@/hooks/use-venues";
 import { useCountries, useStates, useSearchCities, useCity } from "@/hooks/use-countries";
-import { useSalesReps } from "@/hooks/use-users";
 import { useUIStore } from "@/stores/ui-store";
+import { formatMoney, formatPercent } from "@/lib/money";
 import {
   VENUE_TYPE_LABELS,
   SIXCLUBS_RELATIONSHIP_LABELS,
@@ -94,8 +94,6 @@ interface VenueFilterSelectsProps {
   setVenueFilters: ReturnType<typeof useUIStore.getState>["setVenueFilters"];
   countries: { id: string; name: string }[];
   states: { id: string; name: string }[];
-  reps: { id: string; name: string | null }[];
-  isAdmin: boolean;
   layout?: "grid" | "stack";
 }
 
@@ -104,8 +102,6 @@ function VenueFilterSelects({
   setVenueFilters,
   countries,
   states,
-  reps,
-  isAdmin,
   layout = "grid",
 }: VenueFilterSelectsProps) {
   const [citySearch, setCitySearch] = useState("");
@@ -273,29 +269,6 @@ function VenueFilterSelects({
         isSearching={citiesSearching}
       />
 
-      {isAdmin && (
-        <Select
-          value={venueFilters.ownerId || "all"}
-          onValueChange={(v) =>
-            setVenueFilters({
-              ownerId: v === "all" ? "" : v,
-              page: 1,
-            })
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Owner" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Owners</SelectItem>
-            {reps.map((r) => (
-              <SelectItem key={r.id} value={r.id}>
-                {r.name ?? "Unnamed"}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
     </div>
   );
 }
@@ -307,7 +280,6 @@ export function VenuesPageClient({ userRole }: VenuesPageClientProps) {
   const updatePlacementStatus = useUpdateVenuePlacementStatus();
   const { requestDelete, ConfirmDeleteDialog } = useConfirmDelete();
   const { data: countries = [] } = useCountries();
-  const { data: reps = [] } = useSalesReps();
   const venueFilters = useUIStore((s) => s.venueFilters);
   const setVenueFilters = useUIStore((s) => s.setVenueFilters);
   const setVenueModalOpen = useUIStore((s) => s.setVenueModalOpen);
@@ -321,7 +293,6 @@ export function VenuesPageClient({ userRole }: VenuesPageClientProps) {
   const editVenue = selectedVenueId ? venues.find((v) => v.id === selectedVenueId) : null;
 
   const isAdmin = userRole === "ADMIN" || userRole === "MANAGER";
-  const isSalesRep = userRole === "SALES_REP";
   const isFirstLoad = isInitialQueryLoad(isPending, data);
   const rowOffset = pagination ? (pagination.page - 1) * pagination.limit : 0;
 
@@ -332,7 +303,6 @@ export function VenuesPageClient({ userRole }: VenuesPageClientProps) {
     venueFilters.countryId,
     venueFilters.stateId,
     venueFilters.cityId,
-    venueFilters.ownerId,
   ].filter(Boolean).length;
 
   function clearFilters() {
@@ -343,14 +313,8 @@ export function VenuesPageClient({ userRole }: VenuesPageClientProps) {
       countryId: "",
       stateId: "",
       cityId: "",
-      ownerId: "",
-      mineOnly: false,
       page: 1,
     });
-  }
-
-  function toggleMineOnly() {
-    setVenueFilters({ mineOnly: !venueFilters.mineOnly, page: 1 });
   }
 
   const filterSelectProps = {
@@ -358,8 +322,6 @@ export function VenuesPageClient({ userRole }: VenuesPageClientProps) {
     setVenueFilters,
     countries,
     states,
-    reps,
-    isAdmin,
   };
 
   function openEdit(id: string) {
@@ -430,16 +392,6 @@ export function VenuesPageClient({ userRole }: VenuesPageClientProps) {
                   setVenueFilters({ search: e.target.value, page: 1 })
                 }
               />
-              {isSalesRep && (
-                <Button
-                  type="button"
-                  variant={venueFilters.mineOnly ? "default" : "outline"}
-                  className="shrink-0"
-                  onClick={toggleMineOnly}
-                >
-                  My venues
-                </Button>
-              )}
               <Button
                 type="button"
                 variant="outline"
@@ -499,7 +451,9 @@ export function VenuesPageClient({ userRole }: VenuesPageClientProps) {
                       <th className="px-4 py-3 text-left font-medium">6ixClubs</th>
                       <th className="px-4 py-3 text-left font-medium">Placement</th>
                       <th className="px-4 py-3 text-left font-medium">Next Action</th>
-                      <th className="px-4 py-3 text-left font-medium">Owner</th>
+                      <th className="px-4 py-3 text-left font-medium">Cut %</th>
+                      <th className="px-4 py-3 text-left font-medium">Gross</th>
+                      <th className="px-4 py-3 text-left font-medium">Their cut</th>
                       <th className="px-4 py-3 text-right font-medium w-15">Actions</th>
                     </tr>
                   </thead>
@@ -526,7 +480,9 @@ export function VenuesPageClient({ userRole }: VenuesPageClientProps) {
                       <th className="px-4 py-3 text-left font-medium">6ixClubs</th>
                       <th className="px-4 py-3 text-left font-medium">Placement</th>
                       <th className="px-4 py-3 text-left font-medium">Next Action</th>
-                      <th className="px-4 py-3 text-left font-medium">Owner</th>
+                      <th className="px-4 py-3 text-left font-medium">Cut %</th>
+                      <th className="px-4 py-3 text-left font-medium">Gross</th>
+                      <th className="px-4 py-3 text-left font-medium">Their cut</th>
                       <th className="px-4 py-3 text-right font-medium w-15">Actions</th>
                     </tr>
                   </thead>
@@ -603,7 +559,9 @@ export function VenuesPageClient({ userRole }: VenuesPageClientProps) {
                             "—"
                           )}
                         </td>
-                        <td className="px-4 py-3">{venue.owner?.name ?? "—"}</td>
+                        <td className="px-4 py-3 tabular-nums">{formatPercent(venue.cutPercentage)}</td>
+                        <td className="px-4 py-3 tabular-nums">{formatMoney(venue.grossRevenue)}</td>
+                        <td className="px-4 py-3 tabular-nums font-medium">{formatMoney(venue.theirCut)}</td>
                         <td className="px-4 py-3">
                           <div className="flex justify-end">
                             <DropdownMenu>
@@ -669,7 +627,7 @@ export function VenuesPageClient({ userRole }: VenuesPageClientProps) {
           </div>
         )}
 
-        <VenueFormDialog userRole={userRole} editVenue={editVenue} />
+        <VenueFormDialog editVenue={editVenue} />
         {ConfirmDeleteDialog}
       </div>
     </QueryPageError>

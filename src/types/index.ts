@@ -14,6 +14,8 @@ export type UserRow = {
   name: string | null;
   email: string;
   role: Role;
+  isSixClub: boolean;
+  isIndependent: boolean;
   createdAt: string;
   _count?: { assignedLocations: number; createdLocations: number; assignedCities?: number };
 };
@@ -102,6 +104,8 @@ export type UserDetail = {
   name: string | null;
   email: string;
   role: Role;
+  isSixClub: boolean;
+  isIndependent: boolean;
   createdAt: string;
   assignedCities: {
     city: {
@@ -126,13 +130,28 @@ export type LocationsPage = {
   pagination: { page: number; limit: number; total: number; totalPages: number };
 };
 
+export type DashboardVenue = {
+  id: string;
+  name: string;
+  cityName: string | null;
+  cutPercentage: number;
+  grossRevenue: number;
+  theirCut: number;
+};
+
 export type DashboardData = {
+  view: "locations" | "venues" | "both";
+  ownOnly: boolean;
   totalLocations: number;
   statusCounts: Record<LocationStatus, number>;
   recentLocations: Location[];
   totalUsers: number;
   totalCountries: number;
   totalStates: number;
+  totalVenues: number;
+  totalGrossRevenue: number;
+  totalTheirCut: number;
+  recentVenues: DashboardVenue[];
 };
 
 export type NotificationItem = {
@@ -171,8 +190,9 @@ export type Venue = {
   vendingPlacementStatus: VendingPlacementStatus;
   nextAction?: string | null;
   nextActionDate?: string | null;
-  ownerId?: string | null;
-  owner?: { id: string; name: string | null; email?: string } | null;
+  cutPercentage: number;
+  grossRevenue: number;
+  theirCut: number;
   createdById?: string;
   createdBy?: { id: string; name: string | null; email?: string } | null;
   notes?: string | null;

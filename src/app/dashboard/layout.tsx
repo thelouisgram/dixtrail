@@ -1,6 +1,6 @@
-import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { CLEAR_SESSION_PATH, hasCompleteSession } from "@/lib/auth-utils";
+import { CLEAR_SESSION_PATH } from "@/lib/auth-utils";
+import { getViewer } from "@/lib/auth-helpers";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 
 export default async function DashboardLayout({
@@ -8,11 +8,16 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!hasCompleteSession(session)) redirect(CLEAR_SESSION_PATH);
+  const viewer = await getViewer();
+  if (!viewer) redirect(CLEAR_SESSION_PATH);
 
   return (
-    <DashboardShell userRole={session.user.role} userName={session.user.name}>
+    <DashboardShell
+      userRole={viewer.role}
+      userName={viewer.name}
+      isSixClub={viewer.isSixClub}
+      isIndependent={viewer.isIndependent}
+    >
       {children}
     </DashboardShell>
   );

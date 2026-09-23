@@ -30,6 +30,8 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.isSixClub = Boolean(user.isSixClub);
+        token.isIndependent = Boolean(user.isIndependent);
         token.roleCheckedAt = Date.now();
         return token;
       }
@@ -41,7 +43,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id as string },
-            select: { id: true, role: true },
+            select: { id: true, role: true, isSixClub: true, isIndependent: true },
           });
 
           if (!dbUser) {
@@ -49,6 +51,8 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
           }
 
           token.role = dbUser.role;
+          token.isSixClub = dbUser.isSixClub;
+          token.isIndependent = dbUser.isIndependent;
           token.roleCheckedAt = Date.now();
         } catch (error) {
           console.error("JWT role refresh failed — keeping existing token:", error);
@@ -63,6 +67,8 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
       }
       session.user.id = token.id as string;
       session.user.role = token.role as string;
+      session.user.isSixClub = Boolean(token.isSixClub);
+      session.user.isIndependent = Boolean(token.isIndependent);
       return session;
     },
   },
@@ -107,6 +113,8 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+          isSixClub: user.isSixClub,
+          isIndependent: user.isIndependent,
         };
       },
     }),

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useUsers, useDeleteUser } from "@/hooks/use-users";
 import { useUIStore } from "@/stores/ui-store";
 import { ROLE_LABELS } from "@/lib/constants";
+import { accountScopeLabel } from "@/lib/access";
 import { Role } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
@@ -114,6 +115,7 @@ export function UsersPageClient({ currentUserId, userRole }: UsersPageClientProp
                     <th className="px-4 py-3 text-left font-medium">Name</th>
                     <th className="px-4 py-3 text-left font-medium">Email</th>
                     <th className="px-4 py-3 text-left font-medium">Role</th>
+                    <th className="px-4 py-3 text-left font-medium">Access</th>
                     <th className="px-4 py-3 text-left font-medium">Joined</th>
                     <th className="px-4 py-3 text-right font-medium w-15">Actions</th>
                   </tr>
@@ -123,7 +125,7 @@ export function UsersPageClient({ currentUserId, userRole }: UsersPageClientProp
                     <UsersTablePlaceholder />
                   ) : userList.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8">
+                      <td colSpan={7} className="px-4 py-8">
                         <EmptyState
                           className="py-8"
                           title={
@@ -149,6 +151,9 @@ export function UsersPageClient({ currentUserId, userRole }: UsersPageClientProp
                         <td className="px-4 py-3">{user.email}</td>
                         <td className="px-4 py-3">
                           <Badge variant="secondary">{ROLE_LABELS[user.role]}</Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant="outline">{accountScopeLabel(user)}</Badge>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {format(new Date(user.createdAt), "MMM d, yyyy")}

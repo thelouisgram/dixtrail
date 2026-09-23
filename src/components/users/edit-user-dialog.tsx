@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DialogFormPlaceholder } from "@/components/ui/cute-placeholder";
+import { AccountScopeFields } from "@/components/users/account-scope-fields";
 
 interface EditUserDialogProps {
   currentUserId: string;
@@ -65,6 +66,8 @@ export function EditUserDialog({ currentUserId, userRole }: EditUserDialogProps)
       email: "",
       password: "",
       role: Role.SALES_REP,
+      isSixClub: false,
+      isIndependent: false,
     },
   });
 
@@ -75,6 +78,8 @@ export function EditUserDialog({ currentUserId, userRole }: EditUserDialogProps)
         email: user.email,
         password: "",
         role: user.role,
+        isSixClub: user.isSixClub,
+        isIndependent: user.isIndependent,
       });
     }
   }, [user, reset]);
@@ -104,7 +109,9 @@ export function EditUserDialog({ currentUserId, userRole }: EditUserDialogProps)
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit User</DialogTitle>
-          <DialogDescription>Update profile details, role, or password.</DialogDescription>
+          <DialogDescription>
+            Update profile details, role, password, or whether this account is 6ixClubs or independent.
+          </DialogDescription>
         </DialogHeader>
 
         {isPending || !user ? (
@@ -156,6 +163,7 @@ export function EditUserDialog({ currentUserId, userRole }: EditUserDialogProps)
                 />
               </div>
             )}
+            <AccountScopeFields control={control} />
             <Button type="submit" className="w-full" loading={isSubmitting || updateUser.isPending}>
               Save changes
             </Button>

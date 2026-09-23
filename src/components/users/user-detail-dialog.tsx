@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { useUIStore } from "@/stores/ui-store";
 import { useUserDetail } from "@/hooks/use-users";
 import { ACTIVITY_LABELS, ROLE_LABELS, STATUS_COLORS, STATUS_LABELS } from "@/lib/constants";
+import { accountScopeLabel } from "@/lib/access";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ export function UserDetailDialog() {
             <div className="space-y-6">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{ROLE_LABELS[user.role]}</Badge>
+                <Badge variant="outline">{accountScopeLabel(user)}</Badge>
                 <span className="text-sm text-muted-foreground">
                   Joined {format(new Date(user.createdAt), "MMM d, yyyy")}
                 </span>
