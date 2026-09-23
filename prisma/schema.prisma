@@ -75,13 +75,14 @@ model User {
   name      String?
   email     String   @unique
   password  String?
-  role      Role     @default(SALES_REP)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role          Role     @default(SALES_REP)
+  isSixClub     Boolean  @default(false)
+  isIndependent Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   assignedLocations Location[]     @relation("AssignedRep")
   createdLocations  Location[]     @relation("CreatedBy")
-  ownedVenues       Venue[]        @relation("VenueOwner")
   createdVenues     Venue[]        @relation("VenueCreatedBy")
   assignedCities    UserCity[]
   activities        Activity[]
@@ -223,8 +224,9 @@ model Venue {
   vendingPlacementStatus VendingPlacementStatus @default(NOT_CONTACTED)
   nextAction             String?
   nextActionDate         DateTime?
-  ownerId                String?                @db.ObjectId
-  owner                  User?                  @relation("VenueOwner", fields: [ownerId], references: [id])
+  cutPercentage          Float                  @default(0)
+  grossRevenue           Float                  @default(0)
+  theirCut               Float                  @default(0)
   createdById            String                 @db.ObjectId
   createdBy              User                   @relation("VenueCreatedBy", fields: [createdById], references: [id])
   notes                  String?
@@ -232,7 +234,6 @@ model Venue {
   updatedAt              DateTime               @updatedAt
 
   @@index([normalizedName])
-  @@index([ownerId])
   @@index([cityId])
   @@index([vendingPlacementStatus])
   @@index([sixClubsRelationship])

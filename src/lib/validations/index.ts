@@ -24,6 +24,8 @@ export const createUserSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.nativeEnum(Role),
+  isSixClub: z.boolean(),
+  isIndependent: z.boolean(),
   cityIds: z.array(z.string().regex(/^[a-f\d]{24}$/i)).optional(),
 });
 
@@ -45,6 +47,8 @@ export const updateUserSchema = z.object({
   name: z.string().trim().min(1, "Name is required").optional(),
   email: z.string().email("Invalid email address").optional(),
   role: z.nativeEnum(Role).optional(),
+  isSixClub: z.boolean().optional(),
+  isIndependent: z.boolean().optional(),
   password: z
     .string()
     .min(6, "Password must be at least 6 characters")
@@ -230,6 +234,13 @@ function parseOptionalPositiveInt(value?: string | number | null) {
   return num;
 }
 
+function parseNonNegativeNumber(value?: string | number | null) {
+  if (value === "" || value === null || value === undefined) return 0;
+  const num = typeof value === "number" ? value : Number(value);
+  if (Number.isNaN(num)) return Number.NaN;
+  return num;
+}
+
 /** Client-side venue form */
 export const venueFormSchema = z.object({
   name: z.string().trim().min(1, "Venue name is required"),
@@ -247,7 +258,8 @@ export const venueFormSchema = z.object({
   vendingPlacementStatus: z.nativeEnum(VendingPlacementStatus),
   nextAction: z.string().optional(),
   nextActionDate: z.string().optional(),
-  ownerId: z.string().nullable().optional(),
+  cutPercentage: z.string().optional(),
+  grossRevenue: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -268,10 +280,8 @@ export const createVenueSchema = z.object({
   vendingPlacementStatus: z.nativeEnum(VendingPlacementStatus).optional(),
   nextAction: z.string().trim().optional(),
   nextActionDate: z.string().optional(),
-  ownerId: z
-    .string()
-    .regex(/^[a-f\d]{24}$/i)
-    .optional(),
+  cutPercentage: z.number().min(0, "Percentage cannot be negative").max(100, "Percentage cannot exceed 100"),
+  grossRevenue: z.number().min(0, "Gross revenue cannot be negative"),
   notes: z.string().trim().optional(),
 });
 
@@ -296,11 +306,8 @@ export const updateVenueSchema = z.object({
   vendingPlacementStatus: z.nativeEnum(VendingPlacementStatus).optional(),
   nextAction: z.string().trim().nullable().optional(),
   nextActionDate: z.string().nullable().optional(),
-  ownerId: z
-    .string()
-    .regex(/^[a-f\d]{24}$/i)
-    .nullable()
-    .optional(),
+  cutPercentage: z.number().min(0, "Percentage cannot be negative").max(100, "Percentage cannot exceed 100").optional(),
+  grossRevenue: z.number().min(0, "Gross revenue cannot be negative").optional(),
   notes: z.string().trim().nullable().optional(),
 });
 
@@ -314,11 +321,6 @@ export const venueQuerySchema = z.object({
   countryId: z.string().optional(),
   stateId: z.string().optional(),
   cityId: z.string().optional(),
-  ownerId: z.string().optional(),
-  mineOnly: z
-    .string()
-    .optional()
-    .transform((v) => v === "true"),
 });
 
 export type VenueFormInput = z.infer<typeof venueFormSchema>;
@@ -336,7 +338,8 @@ export function toCreateVenuePayload(data: VenueFormInput): CreateVenueInput {
     decisionMakerPhone: data.decisionMakerPhone?.trim() || undefined,
     nextAction: data.nextAction?.trim() || undefined,
     nextActionDate: data.nextActionDate || undefined,
-    ownerId: data.ownerId || undefined,
+    cutPercentage: parseNonNegativeNumber(data.cutPercentage),
+    grossRevenue: parseNonNegativeNumber(data.grossRevenue),
     eventsPerMonth: parseOptionalPositiveInt(data.eventsPerMonth),
     approximateAttendance: parseOptionalPositiveInt(data.approximateAttendance),
   });
@@ -352,7 +355,8 @@ export function toUpdateVenuePayload(data: VenueFormInput): UpdateVenueInput {
     decisionMakerPhone: data.decisionMakerPhone?.trim() || null,
     nextAction: data.nextAction?.trim() || null,
     nextActionDate: data.nextActionDate || null,
-    ownerId: data.ownerId ?? null,
+    cutPercentage: parseNonNegativeNumber(data.cutPercentage),
+    grossRevenue: parseNonNegativeNumber(data.grossRevenue),
     cityId: data.cityId,
     eventsPerMonth: parseOptionalPositiveInt(data.eventsPerMonth) ?? null,
     approximateAttendance: parseOptionalPositiveInt(data.approximateAttendance) ?? null,

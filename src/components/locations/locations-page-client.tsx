@@ -75,6 +75,7 @@ function toCityFilterOptions(cities: City[]): SearchableSelectOption[] {
 
 interface LocationsPageClientProps {
   userRole: string;
+  isIndependent?: boolean;
 }
 
 interface LocationFilterSelectsProps {
@@ -253,7 +254,7 @@ function LocationFilterSelects({
   );
 }
 
-export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
+export function LocationsPageClient({ userRole, isIndependent = false }: LocationsPageClientProps) {
   const searchParams = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [followUpPrompt, setFollowUpPrompt] = useState<{
@@ -402,7 +403,11 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
       <div className="space-y-6 animate-fade-in">
         <PageHeader
           title="Locations & Events"
-          description="Manage field sales locations and track progress"
+          description={
+            isIndependent
+              ? "Only the locations assigned to you"
+              : "Manage field sales locations and track progress"
+          }
           loadingDescription="Plotting locations on the map…"
           isLoading={isFirstLoad}
           action={
@@ -432,7 +437,7 @@ export function LocationsPageClient({ userRole }: LocationsPageClientProps) {
                 setLocationFilters({ search: e.target.value, page: 1 })
               }
             />
-            {isSalesRep && (
+            {isSalesRep && !isIndependent && (
               <Button
                 type="button"
                 variant={locationFilters.mineOnly ? "default" : "outline"}

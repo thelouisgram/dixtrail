@@ -152,6 +152,9 @@ export function UsersTablePlaceholder() {
             <Skeleton className="h-6 w-20 rounded-full" />
           </td>
           <td className="px-4 py-3">
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </td>
+          <td className="px-4 py-3">
             <Skeleton className="h-4 w-24" />
           </td>
           <td className="px-4 py-3">
@@ -162,7 +165,7 @@ export function UsersTablePlaceholder() {
         </tr>
       ))}
       <tr aria-hidden>
-        <td colSpan={6} className="px-4 py-4 text-center">
+        <td colSpan={7} className="px-4 py-4 text-center">
           <LoadingHint>Rounding up the team…</LoadingHint>
         </td>
       </tr>

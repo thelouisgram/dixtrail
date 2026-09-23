@@ -11,8 +11,8 @@ import {
 } from "@prisma/client";
 import { useCreateVenue, useSearchVenues, useUpdateVenue } from "@/hooks/use-venues";
 import { useCountries, useStates, useSearchCities } from "@/hooks/use-countries";
-import { useSalesReps } from "@/hooks/use-users";
 import { useUIStore } from "@/stores/ui-store";
+import { computeTheirCut, formatMoney } from "@/lib/money";
 import {
   VENUE_TYPE_LABELS,
   SIXCLUBS_RELATIONSHIP_LABELS,
@@ -63,12 +63,10 @@ function toCityOptions(cities: City[]): SearchableSelectOption[] {
 }
 
 interface VenueFormDialogProps {
-  userRole: string;
   editVenue?: Venue | null;
 }
 
 interface VenueFormContentProps {
-  userRole: string;
   editVenue?: Venue | null;
   onClose: () => void;
 }
@@ -91,17 +89,17 @@ function buildDefaults(editVenue?: Venue | null): VenueFormInput {
       editVenue?.vendingPlacementStatus ?? VendingPlacementStatus.NOT_CONTACTED,
     nextAction: editVenue?.nextAction ?? "",
     nextActionDate: editVenue?.nextActionDate?.split("T")[0] ?? undefined,
-    ownerId: editVenue?.ownerId ?? undefined,
+    cutPercentage: editVenue?.cutPercentage?.toString() ?? "0",
+    grossRevenue: editVenue?.grossRevenue?.toString() ?? "0",
     notes: editVenue?.notes ?? undefined,
   };
 }
 
-function VenueFormContent({ userRole, editVenue, onClose }: VenueFormContentProps) {
+function VenueFormContent({ editVenue, onClose }: VenueFormContentProps) {
   const isEdit = !!editVenue;
   const createVenue = useCreateVenue();
   const updateVenue = useUpdateVenue();
   const { data: countries = [] } = useCountries();
-  const { data: reps = [] } = useSalesReps();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [step, setStep] = useState<"search" | "form">(isEdit ? "form" : "search");
@@ -176,7 +174,9 @@ function VenueFormContent({ userRole, editVenue, onClose }: VenueFormContentProp
     }
   }
 
-  const isAdmin = userRole === "ADMIN" || userRole === "MANAGER";
+  const cutPercentageValue = Number(watch("cutPercentage")) || 0;
+  const grossRevenueValue = Number(watch("grossRevenue")) || 0;
+  const theirCut = computeTheirCut(grossRevenueValue, cutPercentageValue);
 
   async function onSubmit(data: VenueFormInput) {
     try {
@@ -496,33 +496,41 @@ function VenueFormContent({ userRole, editVenue, onClose }: VenueFormContentProp
             </div>
           </div>
 
-          {isAdmin && (
-            <div className="space-y-2">
-              <Label>Owner</Label>
-              <Controller
-                name="ownerId"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    value={field.value ?? "none"}
-                    onValueChange={(v) => field.onChange(v === "none" ? null : v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select owner (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Unassigned</SelectItem>
-                      {reps.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.name ?? "Unnamed"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+          <div className="space-y-4 rounded-md border p-4">
+            <p className="text-sm font-medium">6ixClubs revenue share</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="cutPercentage">Percentage they take</Label>
+                <Input
+                  id="cutPercentage"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  {...register("cutPercentage")}
+                />
+                {errors.cutPercentage && (
+                  <p className="text-sm text-destructive">{errors.cutPercentage.message}</p>
                 )}
-              />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="grossRevenue">Gross revenue</Label>
+                <Input
+                  id="grossRevenue"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  {...register("grossRevenue")}
+                />
+                {errors.grossRevenue && (
+                  <p className="text-sm text-destructive">{errors.grossRevenue.message}</p>
+                )}
+              </div>
             </div>
-          )}
+            <p className="text-sm text-muted-foreground">
+              Their cut: <span className="font-medium text-foreground">{formatMoney(theirCut)}</span>
+            </p>
+          </div>
 
           <div className="space-y-2">
             <Label>Notes</Label>
@@ -549,7 +557,7 @@ function VenueFormContent({ userRole, editVenue, onClose }: VenueFormContentProp
   );
 }
 
-export function VenueFormDialog({ userRole, editVenue }: VenueFormDialogProps) {
+export function VenueFormDialog({ editVenue }: VenueFormDialogProps) {
   const { venueModalOpen, setVenueModalOpen, setSelectedVenueId } = useUIStore();
 
   function handleClose(open: boolean) {
@@ -566,7 +574,6 @@ export function VenueFormDialog({ userRole, editVenue }: VenueFormDialogProps) {
         {venueModalOpen && (
           <VenueFormContent
             key={editVenue?.id ?? "new"}
-            userRole={userRole}
             editVenue={editVenue}
             onClose={() => handleClose(false)}
           />

@@ -28,8 +28,6 @@ function buildVenueParams(filters: ReturnType<typeof useUIStore.getState>["venue
   if (filters.countryId) params.set("countryId", filters.countryId);
   if (filters.stateId) params.set("stateId", filters.stateId);
   if (filters.cityId) params.set("cityId", filters.cityId);
-  if (filters.ownerId) params.set("ownerId", filters.ownerId);
-  if (filters.mineOnly) params.set("mineOnly", "true");
   return params.toString();
 }
 

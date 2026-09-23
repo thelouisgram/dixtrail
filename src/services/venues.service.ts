@@ -2,34 +2,37 @@ import prisma from "@/lib/prisma";
 import { normalizeEventName } from "@/lib/utils";
 import { CreateVenueInput, UpdateVenueInput, VenueQueryInput } from "@/lib/validations";
 import {
-  Role,
   SixClubsRelationship,
   VendingPlacementStatus,
 } from "@prisma/client";
 import { parseDateInput } from "@/lib/date-utils";
+import {
+  canSeeVenues,
+  isAdminOrManager,
+  seesOnlyOwnVenues,
+  type AccessUser,
+} from "@/lib/access";
+import { computeTheirCut } from "@/lib/money";
 
 const venueInclude = {
   country: true,
   state: true,
   city: true,
-  owner: { select: { id: true, name: true, email: true } },
   createdBy: { select: { id: true, name: true, email: true } },
 };
 
-export async function getSalesRepVenueFilter(userId: string) {
-  const cityIds = (
-    await prisma.userCity.findMany({
-      where: { userId },
-      select: { cityId: true },
-    })
-  ).map((row) => row.cityId);
-
-  const or: Record<string, unknown>[] = [{ ownerId: userId }];
-  if (cityIds.length > 0) {
-    or.push({ cityId: { in: cityIds } });
+function assertCanSeeVenues(viewer: AccessUser) {
+  if (!canSeeVenues(viewer)) {
+    throw new Error("Forbidden");
   }
+}
 
-  return { OR: or };
+function venueAccessScope(viewer: AccessUser) {
+  assertCanSeeVenues(viewer);
+  if (seesOnlyOwnVenues(viewer)) {
+    return { createdById: viewer.id };
+  }
+  return null;
 }
 
 function combineWhere(
@@ -73,17 +76,13 @@ function buildVenueWhere(query: VenueQueryInput) {
   if (query.countryId) where.countryId = query.countryId;
   if (query.stateId) where.stateId = query.stateId;
   if (query.cityId) where.cityId = query.cityId;
-  if (query.ownerId) where.ownerId = query.ownerId;
 
   return where;
 }
 
-export async function getVenues(query: VenueQueryInput, userId: string, role: Role) {
+export async function getVenues(query: VenueQueryInput, viewer: AccessUser) {
   const filters = buildVenueWhere(query);
-  const accessScope =
-    role === Role.SALES_REP && query.mineOnly
-      ? await getSalesRepVenueFilter(userId)
-      : null;
+  const accessScope = venueAccessScope(viewer);
   const where = combineWhere(filters, accessScope);
   const skip = (query.page - 1) * query.limit;
 
@@ -109,18 +108,22 @@ export async function getVenues(query: VenueQueryInput, userId: string, role: Ro
   };
 }
 
-export async function searchVenuesByName(query: string) {
+export async function searchVenuesByName(query: string, viewer: AccessUser) {
   const normalized = normalizeEventName(query);
   if (!normalized) return [];
 
+  const accessScope = venueAccessScope(viewer);
+  const where = combineWhere({ normalizedName: { contains: normalized } }, accessScope);
+
   return prisma.venue.findMany({
-    where: { normalizedName: { contains: normalized } },
+    where,
     include: venueInclude,
     take: 10,
   });
 }
 
-export async function createVenue(data: CreateVenueInput, userId: string, role: Role) {
+export async function createVenue(data: CreateVenueInput, viewer: AccessUser) {
+  assertCanSeeVenues(viewer);
   await assertStateInCountry(data.stateId, data.countryId);
   await assertCityInState(data.cityId, data.stateId);
 
@@ -133,7 +136,8 @@ export async function createVenue(data: CreateVenueInput, userId: string, role: 
     throw new Error("A venue with this name already exists");
   }
 
-  const ownerId = role === Role.SALES_REP ? userId : data.ownerId ?? null;
+  const cutPercentage = data.cutPercentage ?? 0;
+  const grossRevenue = data.grossRevenue ?? 0;
 
   return prisma.venue.create({
     data: {
@@ -154,8 +158,10 @@ export async function createVenue(data: CreateVenueInput, userId: string, role: 
         data.vendingPlacementStatus ?? VendingPlacementStatus.NOT_CONTACTED,
       nextAction: data.nextAction ?? null,
       nextActionDate: data.nextActionDate ? parseDateInput(data.nextActionDate) : null,
-      ownerId,
-      createdById: userId,
+      cutPercentage,
+      grossRevenue,
+      theirCut: computeTheirCut(grossRevenue, cutPercentage),
+      createdById: viewer.id,
       notes: data.notes ?? null,
     },
     include: venueInclude,
@@ -165,11 +171,14 @@ export async function createVenue(data: CreateVenueInput, userId: string, role: 
 export async function updateVenue(
   id: string,
   data: UpdateVenueInput,
-  _userId: string,
-  role: Role
+  viewer: AccessUser
 ) {
+  assertCanSeeVenues(viewer);
   const venue = await prisma.venue.findUnique({ where: { id } });
   if (!venue) throw new Error("Venue not found");
+  if (seesOnlyOwnVenues(viewer) && venue.createdById !== viewer.id) {
+    throw new Error("Forbidden");
+  }
 
   const countryId = data.countryId ?? venue.countryId;
   const stateId = data.stateId ?? venue.stateId;
@@ -224,8 +233,12 @@ export async function updateVenue(
   }
   if (data.notes !== undefined) updateData.notes = data.notes;
 
-  if (role !== Role.SALES_REP && data.ownerId !== undefined) {
-    updateData.ownerId = data.ownerId;
+  if (data.cutPercentage !== undefined || data.grossRevenue !== undefined) {
+    const cutPercentage = data.cutPercentage ?? venue.cutPercentage ?? 0;
+    const grossRevenue = data.grossRevenue ?? venue.grossRevenue ?? 0;
+    updateData.cutPercentage = cutPercentage;
+    updateData.grossRevenue = grossRevenue;
+    updateData.theirCut = computeTheirCut(grossRevenue, cutPercentage);
   }
 
   return prisma.venue.update({
@@ -235,8 +248,8 @@ export async function updateVenue(
   });
 }
 
-export async function deleteVenue(id: string, role: Role) {
-  if (role !== Role.ADMIN && role !== Role.MANAGER) {
+export async function deleteVenue(id: string, viewer: AccessUser) {
+  if (!isAdminOrManager(viewer.role)) {
     throw new Error("Only admins and managers can delete venues");
   }
 

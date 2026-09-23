@@ -7,10 +7,18 @@ import { PageErrorFallback } from "@/components/ui/page-error-fallback";
 interface DashboardShellProps {
   userRole: string;
   userName?: string | null;
+  isSixClub?: boolean;
+  isIndependent?: boolean;
   children: React.ReactNode;
 }
 
-export function DashboardShell({ userRole, userName, children }: DashboardShellProps) {
+export function DashboardShell({
+  userRole,
+  userName,
+  isSixClub = false,
+  isIndependent = false,
+  children,
+}: DashboardShellProps) {
   return (
     <div className="flex h-screen min-h-screen overflow-hidden">
       <ErrorBoundary
@@ -22,7 +30,12 @@ export function DashboardShell({ userRole, userName, children }: DashboardShellP
           </aside>
         )}
       >
-        <Sidebar userRole={userRole} userName={userName} />
+        <Sidebar
+          userRole={userRole}
+          userName={userName}
+          isSixClub={isSixClub}
+          isIndependent={isIndependent}
+        />
       </ErrorBoundary>
       <main className="min-h-0 flex-1 overflow-y-auto p-4 pt-[4.5rem] sm:p-6 lg:p-8 lg:pt-6">
         {children}

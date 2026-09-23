@@ -25,8 +25,6 @@ interface VenueFilters {
   countryId: string;
   stateId: string;
   cityId: string;
-  ownerId: string;
-  mineOnly: boolean;
   page: number;
 }
 
@@ -85,8 +83,6 @@ const defaultVenueFilters: VenueFilters = {
   countryId: "",
   stateId: "",
   cityId: "",
-  ownerId: "",
-  mineOnly: false,
   page: 1,
 };
 

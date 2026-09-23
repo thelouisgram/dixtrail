@@ -10,12 +10,16 @@ const userListSelect = {
   name: true,
   email: true,
   role: true,
+  isSixClub: true,
+  isIndependent: true,
   createdAt: true,
 } as const;
 
-function serializeUserRow<T extends { createdAt: Date }>(user: T) {
+function serializeUserRow<T extends { createdAt: Date; isSixClub?: boolean | null; isIndependent?: boolean | null }>(user: T) {
   return {
     ...user,
+    isSixClub: Boolean(user.isSixClub),
+    isIndependent: Boolean(user.isIndependent),
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -106,6 +110,8 @@ export async function getUserDetail(id: string) {
       name: true,
       email: true,
       role: true,
+      isSixClub: true,
+      isIndependent: true,
       createdAt: true,
       assignedCities: {
         include: {
@@ -151,6 +157,8 @@ export async function getUserDetail(id: string) {
 
   return {
     ...user,
+    isSixClub: Boolean(user.isSixClub),
+    isIndependent: Boolean(user.isIndependent),
     createdAt: user.createdAt.toISOString(),
     assignedLocations: user.assignedLocations.map((loc) => ({
       ...loc,
@@ -195,6 +203,8 @@ export async function createUser(data: CreateUserInput, requesterRole: Role) {
       email: data.email.toLowerCase(),
       password: hashedPassword,
       role: data.role,
+      isSixClub: data.isSixClub,
+      isIndependent: data.isIndependent,
     },
     select: userListSelect,
   });
@@ -259,11 +269,15 @@ export async function updateUser(
     email?: string;
     role?: Role;
     password?: string;
+    isSixClub?: boolean;
+    isIndependent?: boolean;
   } = {};
 
   if (data.name !== undefined) updateData.name = data.name;
   if (data.email !== undefined) updateData.email = data.email.toLowerCase();
   if (data.role !== undefined && data.role !== user.role) updateData.role = data.role;
+  if (data.isSixClub !== undefined) updateData.isSixClub = data.isSixClub;
+  if (data.isIndependent !== undefined) updateData.isIndependent = data.isIndependent;
   if (data.password?.trim()) {
     updateData.password = await bcrypt.hash(data.password, 10);
   }
@@ -335,7 +349,12 @@ export async function deleteUser(
 
 export async function getSalesReps() {
   return prisma.user.findMany({
-    where: { role: { in: [Role.SALES_REP, Role.MANAGER] } },
+    where: {
+      OR: [
+        { role: Role.MANAGER },
+        { role: Role.SALES_REP, isSixClub: { not: true } },
+      ],
+    },
     select: {
       id: true,
       name: true,

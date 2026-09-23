@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AccountScopeFields } from "@/components/users/account-scope-fields";
 
 interface CreateUserDialogProps {
   userRole: string;
@@ -35,6 +36,8 @@ const defaultValues: CreateUserInput = {
   email: "",
   password: "",
   role: Role.SALES_REP,
+  isSixClub: false,
+  isIndependent: false,
 };
 
 function allowedRoles(userRole: string): Role[] {
@@ -80,7 +83,7 @@ export function CreateUserDialog({ userRole }: CreateUserDialogProps) {
         <DialogHeader>
           <DialogTitle>Create User</DialogTitle>
           <DialogDescription>
-            Add a team member, then assign cities from the actions menu.
+            Add a team member. Tick 6ixClubs, Independent, or leave both off for a Luxe Dispense sales rep.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -122,6 +125,7 @@ export function CreateUserDialog({ userRole }: CreateUserDialogProps) {
               )}
             />
           </div>
+          <AccountScopeFields control={control} />
           <Button type="submit" className="w-full" loading={isSubmitting || createUser.isPending}>
             Create User
           </Button>

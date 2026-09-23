@@ -14,6 +14,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn, formatRoleLabel } from "@/lib/utils";
+import { accountScopeLabel, canSeeLocations, canSeeVenues, type AccessUser } from "@/lib/access";
+import { Role } from "@prisma/client";
 import { useUIStore } from "@/stores/ui-store";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/logo";
@@ -22,8 +24,8 @@ import { signOut } from "next-auth/react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/locations", label: "Locations", icon: MapPin },
-  { href: "/dashboard/venues", label: "6ixClubs Venues", icon: Building2 },
+  { href: "/dashboard/locations", label: "Locations", icon: MapPin, locationsOnly: true },
+  { href: "/dashboard/venues", label: "6ixClubs Venues", icon: Building2, venuesOnly: true },
   { href: "/dashboard/notifications", label: "Notifications", isNotifications: true },
   { href: "/dashboard/users", label: "Users", icon: Users, adminOnly: true },
   { href: "/dashboard/territories", label: "Territories", icon: Globe, adminOnly: true },
@@ -32,15 +34,31 @@ const navItems = [
 interface SidebarProps {
   userRole: string;
   userName?: string | null;
+  isSixClub?: boolean;
+  isIndependent?: boolean;
 }
 
-export function Sidebar({ userRole, userName }: SidebarProps) {
+export function Sidebar({
+  userRole,
+  userName,
+  isSixClub = false,
+  isIndependent = false,
+}: SidebarProps) {
   const pathname = usePathname();
   const { sidebarOpen, setSidebarOpen, toggleSidebar } = useUIStore();
+  const viewer: AccessUser = {
+    id: "",
+    role: userRole as Role,
+    isSixClub,
+    isIndependent,
+  };
 
-  const filteredNav = navItems.filter(
-    (item) => !item.adminOnly || userRole === "ADMIN" || userRole === "MANAGER"
-  );
+  const filteredNav = navItems.filter((item) => {
+    if (item.adminOnly && userRole !== "ADMIN" && userRole !== "MANAGER") return false;
+    if (item.locationsOnly && !canSeeLocations(viewer)) return false;
+    if (item.venuesOnly && !canSeeVenues(viewer)) return false;
+    return true;
+  });
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -143,6 +161,8 @@ export function Sidebar({ userRole, userName }: SidebarProps) {
           <p className="mb-2 truncate text-sm font-medium">{userName ?? "User"}</p>
           <p className="mb-3 text-xs text-muted-foreground">
             {formatRoleLabel(userRole)}
+            {" · "}
+            {accountScopeLabel(viewer)}
           </p>
           <Button
             variant="outline"
