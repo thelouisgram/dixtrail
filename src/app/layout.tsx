@@ -7,9 +7,9 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: APP_NAME,
-  description: "Manage locations, territories, and your sales pipeline",
+  description: "Luxe Dispense CRM for locations, venues, and the sales pipeline",
   icons: {
-    icon: "/logo.svg",
+    icon: "/favicon.svg",
   },
 };
 

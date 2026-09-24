@@ -1,9 +1,8 @@
-import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Geist, JetBrains_Mono } from "next/font/google";
 
-export const appSans = Plus_Jakarta_Sans({
+export const appSans = Geist({
   variable: "--font-app-sans",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
 });
 
 export const appMono = JetBrains_Mono({

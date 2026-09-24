@@ -1,7 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { APP_NAME } from "@/lib/constants";
-import { LogoIcon } from "./logo-icon";
 
 interface LogoProps {
   href?: string;
@@ -11,16 +10,10 @@ interface LogoProps {
   onClick?: () => void;
 }
 
-const iconSizes = {
-  sm: "h-7 w-7",
-  md: "h-8 w-8",
-  lg: "h-10 w-10",
-};
-
-const textSizes = {
-  sm: "text-base",
-  md: "text-lg",
-  lg: "text-xl",
+const logoHeights = {
+  sm: "h-6 w-auto",
+  md: "h-8 w-auto",
+  lg: "h-11 w-auto",
 };
 
 export function Logo({
@@ -32,17 +25,28 @@ export function Logo({
 }: LogoProps) {
   const content = (
     <>
-      <LogoIcon className={iconSizes[size]} />
+      <Image
+        src="/brand/logo-horizontal.png"
+        alt="Luxe Dispense"
+        width={630}
+        height={180}
+        priority
+        className={cn("object-contain", logoHeights[size])}
+      />
       {showText && (
-        <span className={cn("font-bold tracking-tight", textSizes[size])}>
-          {APP_NAME.slice(0, 3)}
-          <span className="text-primary">{APP_NAME.slice(3)}</span>
+        <span
+          className={cn(
+            "font-semibold uppercase tracking-[0.22em] text-foreground/80",
+            size === "lg" ? "text-xs" : "text-[10px]"
+          )}
+        >
+          CRM
         </span>
       )}
     </>
   );
 
-  const classes = cn("inline-flex items-center gap-2.5", className);
+  const classes = cn("inline-flex items-center gap-2", className);
 
   if (href) {
     return (

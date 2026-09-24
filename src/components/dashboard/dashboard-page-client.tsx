@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { STATUS_COLORS, STATUS_LABELS } from "@/lib/constants";
-import { formatMoney } from "@/lib/money";
 import { LocationStatus } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, DollarSign, Globe, Layers, MapPin, Percent, Users } from "lucide-react";
+import { Building2, Globe, Layers, MapPin, Users } from "lucide-react";
 import {
   CuteStat,
   CuteCount,
@@ -41,8 +40,8 @@ export function DashboardPageClient({
 
   const description = showVenues && !showLocations
     ? ownVenues
-      ? "Your 6ixClubs venues, the percentage they take, gross revenue, and their cut"
-      : "6ixClubs venues, the percentage they take, gross revenue, and their cut"
+      ? "Your 6ixClubs venues"
+      : "6ixClubs venues at a glance"
     : ownLocations
       ? "Only the locations assigned to you"
       : "Luxe Dispense field sales — locations, outreach, and pipeline at a glance";
@@ -84,21 +83,6 @@ export function DashboardPageClient({
       value: data?.totalVenues,
       icon: Building2,
       href: "/dashboard/venues",
-      money: false,
-    },
-    {
-      label: "Gross revenue",
-      value: data?.totalGrossRevenue,
-      icon: DollarSign,
-      href: "/dashboard/venues",
-      money: true,
-    },
-    {
-      label: "Their cut",
-      value: data?.totalTheirCut,
-      icon: Percent,
-      href: "/dashboard/venues",
-      money: true,
     },
   ];
 
@@ -147,7 +131,7 @@ export function DashboardPageClient({
         )}
 
         {showVenues && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {venueStats.map((stat, index) => {
               const Icon = stat.icon;
               return (
@@ -166,13 +150,7 @@ export function DashboardPageClient({
                       <Icon className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
                     </CardHeader>
                     <CardContent>
-                      {stat.money ? (
-                        <p className="text-2xl font-semibold tabular-nums">
-                          {isFirstLoad ? "—" : formatMoney(stat.value)}
-                        </p>
-                      ) : (
-                        <CuteStat loading={isFirstLoad} value={stat.value} />
-                      )}
+                      <CuteStat loading={isFirstLoad} value={stat.value} />
                     </CardContent>
                   </Card>
                 </Link>
@@ -288,12 +266,6 @@ export function DashboardPageClient({
                       <div>
                         <p className="font-medium">{venue.name}</p>
                         <p className="text-sm text-muted-foreground">{venue.cityName ?? "No city"}</p>
-                      </div>
-                      <div className="text-right text-sm">
-                        <p>{formatMoney(venue.grossRevenue)} gross</p>
-                        <p className="text-muted-foreground">
-                          {venue.cutPercentage}% · {formatMoney(venue.theirCut)} cut
-                        </p>
                       </div>
                     </div>
                   ))}

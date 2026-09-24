@@ -1,27 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #eff6ff;
-  --accent-foreground: #1d4ed8;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #2563eb;
-  --radius: 0.625rem;
-  --shadow-tint: 37 99 235;
-  --shadow-soft: 139 92 246;
-  --shadow-neutral: 100 116 139;
+  --background: #050508;
+  --foreground: #f4f4f5;
+  --card: #101014;
+  --card-foreground: #f4f4f5;
+  --primary: #e4e4e7;
+  --primary-foreground: #09090b;
+  --secondary: #18181c;
+  --secondary-foreground: #f4f4f5;
+  --muted: #16161a;
+  --muted-foreground: #a1a1aa;
+  --accent: #222228;
+  --accent-foreground: #f4f4f5;
+  --destructive: #ff6b6b;
+  --destructive-foreground: #1a0505;
+  --border: #2a2a32;
+  --input: #2a2a32;
+  --ring: #d4d4d8;
+  --radius: 0.5rem;
+  --shadow-tint: 255 255 255;
+  --shadow-soft: 180 180 190;
+  --shadow-neutral: 0 0 0;
 }
 
 @theme inline {
@@ -61,9 +61,13 @@
   border-color: var(--border);
 }
 
+html {
+  color-scheme: dark;
+}
+
 body {
   background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgb(var(--shadow-tint) / 0.08), transparent),
+    radial-gradient(ellipse 70% 45% at 50% -15%, rgb(255 255 255 / 0.06), transparent),
     var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;

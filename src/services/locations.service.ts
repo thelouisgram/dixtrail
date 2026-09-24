@@ -10,6 +10,7 @@ import { logActivity } from "@/services/activities.service";
 import { notifyLocationAssignment } from "@/services/notifications.service";
 import { STATUS_LABELS } from "@/lib/constants";
 import { parseDateInput } from "@/lib/date-utils";
+import { compensationAmounts } from "@/lib/money";
 import {
   canSeeLocations,
   isAdminOrManager,
@@ -184,6 +185,8 @@ export async function createLocation(data: CreateLocationInput, viewer: AccessUs
     throw new Error("Follow-up date is required when status is Follow-up");
   }
 
+  const compensation = compensationAmounts(data);
+
   const location = await prisma.location.create({
     data: {
       eventName: data.eventName,
@@ -200,6 +203,11 @@ export async function createLocation(data: CreateLocationInput, viewer: AccessUs
       contactPhone: data.contactPhone?.trim() || null,
       reachedOutDate: data.reachedOutDate ? parseDateInput(data.reachedOutDate) : null,
       followUpDate,
+      compensationType: compensation.compensationType,
+      profitPercent: compensation.profitPercent,
+      rentAmount: compensation.rentAmount,
+      revenue: compensation.revenue,
+      locationShare: compensation.locationShare,
       notes: data.notes ?? null,
     },
     include: locationInclude,
@@ -271,6 +279,11 @@ export async function updateLocation(
     contactPhone?: string | null;
     reachedOutDate?: Date | null;
     followUpDate?: Date | null;
+    compensationType?: CreateLocationInput["compensationType"];
+    profitPercent?: number | null;
+    rentAmount?: number;
+    revenue?: number;
+    locationShare?: number;
     notes?: string | null;
   } = {};
 
@@ -303,6 +316,24 @@ export async function updateLocation(
   if (data.contactEmail !== undefined) updateData.contactEmail = data.contactEmail?.trim() || null;
   if (data.contactPhone !== undefined) updateData.contactPhone = data.contactPhone?.trim() || null;
   if (data.notes !== undefined) updateData.notes = data.notes;
+  if (
+    data.compensationType !== undefined ||
+    data.profitPercent !== undefined ||
+    data.rentAmount !== undefined ||
+    data.revenue !== undefined
+  ) {
+    const compensation = compensationAmounts({
+      compensationType: data.compensationType ?? location.compensationType,
+      profitPercent: data.profitPercent !== undefined ? data.profitPercent : location.profitPercent,
+      rentAmount: data.rentAmount !== undefined ? data.rentAmount : location.rentAmount,
+      revenue: data.revenue !== undefined ? data.revenue : location.revenue,
+    });
+    updateData.compensationType = compensation.compensationType;
+    updateData.profitPercent = compensation.profitPercent;
+    updateData.rentAmount = compensation.rentAmount;
+    updateData.revenue = compensation.revenue;
+    updateData.locationShare = compensation.locationShare;
+  }
   if (data.reachedOutDate !== undefined) {
     updateData.reachedOutDate = data.reachedOutDate
       ? parseDateInput(data.reachedOutDate)

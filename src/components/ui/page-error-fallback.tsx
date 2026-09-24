@@ -70,7 +70,7 @@ export function PageErrorFallback({
               This page couldn&apos;t load
             </h2>
             <p className="text-sm text-muted-foreground">
-              Something went off-trail. Reload to try again, or head back to where you were.
+              Something went wrong. Reload to try again, or head back to where you were.
             </p>
           </div>
 
