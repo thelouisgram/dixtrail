@@ -6,6 +6,7 @@ import {
   VenueType,
   SixClubsRelationship,
   VendingPlacementStatus,
+  CompensationType,
 } from "@prisma/client";
 
 const requiredObjectId = (label: string) =>
@@ -83,6 +84,55 @@ const contactFieldsRefinement = (
   }
 };
 
+const dealRefinement = (
+  data: { deal?: "RENT" | "10" | "20"; rentAmount?: string },
+  ctx: z.RefinementCtx
+) => {
+  if (data.deal !== "RENT") return;
+  const rent = Number(data.rentAmount);
+  if (!data.rentAmount?.trim() || Number.isNaN(rent) || rent <= 0) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["rentAmount"],
+      message: "Enter the rent amount",
+    });
+  }
+};
+
+const compensationRefinement = (
+  data: {
+    compensationType?: CompensationType;
+    profitPercent?: number | null;
+    rentAmount?: number | null;
+  },
+  ctx: z.RefinementCtx
+) => {
+  if (data.compensationType === CompensationType.PROFIT && data.profitPercent !== 10 && data.profitPercent !== 20) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["profitPercent"],
+      message: "Choose 10% or 20% profit",
+    });
+  }
+  if (data.compensationType === CompensationType.RENT && !(typeof data.rentAmount === "number" && data.rentAmount > 0)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["rentAmount"],
+      message: "Enter the rent amount",
+    });
+  }
+};
+
+function compensationFromDeal(data: { deal: "RENT" | "10" | "20"; rentAmount?: string; revenue?: string }) {
+  const compensationType = data.deal === "RENT" ? CompensationType.RENT : CompensationType.PROFIT;
+  return {
+    compensationType,
+    profitPercent: data.deal === "RENT" ? null : Number(data.deal),
+    rentAmount: data.deal === "RENT" ? parseNonNegativeNumber(data.rentAmount) : 0,
+    revenue: parseNonNegativeNumber(data.revenue),
+  };
+}
+
 const followUpDateRefinement = (
   data: { status?: LocationStatus; followUpDate?: string | null },
   ctx: z.RefinementCtx
@@ -111,11 +161,15 @@ export const locationFormSchema = z
     contactPhone: z.string().optional(),
     reachedOutDate: z.string().optional(),
     followUpDate: z.string().optional(),
+    deal: z.enum(["RENT", "10", "20"]),
+    rentAmount: z.string().optional(),
+    revenue: z.string().optional(),
     notes: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     contactFieldsRefinement(data, ctx);
     followUpDateRefinement(data, ctx);
+    dealRefinement(data, ctx);
   });
 
 /** API: create location */
@@ -136,11 +190,16 @@ export const createLocationSchema = z
     contactPhone: z.string().trim().optional(),
     reachedOutDate: z.string().optional(),
     followUpDate: z.string().optional(),
+    compensationType: z.nativeEnum(CompensationType),
+    profitPercent: z.union([z.literal(10), z.literal(20)]).nullable().optional(),
+    rentAmount: z.number().min(0).optional(),
+    revenue: z.number().min(0, "Revenue cannot be negative"),
     notes: z.string().trim().optional(),
   })
   .superRefine((data, ctx) => {
     contactFieldsRefinement(data, ctx);
     followUpDateRefinement(data, ctx);
+    compensationRefinement(data, ctx);
   });
 
 /** API: update location */
@@ -166,6 +225,10 @@ export const updateLocationSchema = z
     contactPhone: z.string().trim().nullable().optional(),
     reachedOutDate: z.string().nullable().optional(),
     followUpDate: z.string().nullable().optional(),
+    compensationType: z.nativeEnum(CompensationType).optional(),
+    profitPercent: z.union([z.literal(10), z.literal(20)]).nullable().optional(),
+    rentAmount: z.number().min(0).optional(),
+    revenue: z.number().min(0, "Revenue cannot be negative").optional(),
     notes: z.string().trim().nullable().optional(),
   })
   .superRefine((data, ctx) => {
@@ -185,6 +248,7 @@ export const updateLocationSchema = z
       },
       ctx
     );
+    if (data.compensationType) compensationRefinement(data, ctx);
   });
 
 export const locationQuerySchema = z.object({
@@ -258,10 +322,11 @@ export const venueFormSchema = z.object({
   vendingPlacementStatus: z.nativeEnum(VendingPlacementStatus),
   nextAction: z.string().optional(),
   nextActionDate: z.string().optional(),
-  cutPercentage: z.string().optional(),
-  grossRevenue: z.string().optional(),
+  deal: z.enum(["RENT", "10", "20"]),
+  rentAmount: z.string().optional(),
+  revenue: z.string().optional(),
   notes: z.string().optional(),
-});
+}).superRefine(dealRefinement);
 
 /** API: create venue */
 export const createVenueSchema = z.object({
@@ -280,10 +345,12 @@ export const createVenueSchema = z.object({
   vendingPlacementStatus: z.nativeEnum(VendingPlacementStatus).optional(),
   nextAction: z.string().trim().optional(),
   nextActionDate: z.string().optional(),
-  cutPercentage: z.number().min(0, "Percentage cannot be negative").max(100, "Percentage cannot exceed 100"),
-  grossRevenue: z.number().min(0, "Gross revenue cannot be negative"),
+  compensationType: z.nativeEnum(CompensationType),
+  profitPercent: z.union([z.literal(10), z.literal(20)]).nullable().optional(),
+  rentAmount: z.number().min(0).optional(),
+  revenue: z.number().min(0, "Revenue cannot be negative"),
   notes: z.string().trim().optional(),
-});
+}).superRefine(compensationRefinement);
 
 /** API: update venue */
 export const updateVenueSchema = z.object({
@@ -306,9 +373,13 @@ export const updateVenueSchema = z.object({
   vendingPlacementStatus: z.nativeEnum(VendingPlacementStatus).optional(),
   nextAction: z.string().trim().nullable().optional(),
   nextActionDate: z.string().nullable().optional(),
-  cutPercentage: z.number().min(0, "Percentage cannot be negative").max(100, "Percentage cannot exceed 100").optional(),
-  grossRevenue: z.number().min(0, "Gross revenue cannot be negative").optional(),
+  compensationType: z.nativeEnum(CompensationType).optional(),
+  profitPercent: z.union([z.literal(10), z.literal(20)]).nullable().optional(),
+  rentAmount: z.number().min(0).optional(),
+  revenue: z.number().min(0, "Revenue cannot be negative").optional(),
   notes: z.string().trim().nullable().optional(),
+}).superRefine((data, ctx) => {
+  if (data.compensationType) compensationRefinement(data, ctx);
 });
 
 export const venueQuerySchema = z.object({
@@ -329,8 +400,9 @@ export type UpdateVenueInput = z.infer<typeof updateVenueSchema>;
 export type VenueQueryInput = z.infer<typeof venueQuerySchema>;
 
 export function toCreateVenuePayload(data: VenueFormInput): CreateVenueInput {
+  const { deal, rentAmount, revenue, ...rest } = data;
   return createVenueSchema.parse({
-    ...data,
+    ...rest,
     address: data.address?.trim() || undefined,
     notes: data.notes?.trim() || undefined,
     decisionMakerName: data.decisionMakerName?.trim() || undefined,
@@ -338,16 +410,16 @@ export function toCreateVenuePayload(data: VenueFormInput): CreateVenueInput {
     decisionMakerPhone: data.decisionMakerPhone?.trim() || undefined,
     nextAction: data.nextAction?.trim() || undefined,
     nextActionDate: data.nextActionDate || undefined,
-    cutPercentage: parseNonNegativeNumber(data.cutPercentage),
-    grossRevenue: parseNonNegativeNumber(data.grossRevenue),
+    ...compensationFromDeal(data),
     eventsPerMonth: parseOptionalPositiveInt(data.eventsPerMonth),
     approximateAttendance: parseOptionalPositiveInt(data.approximateAttendance),
   });
 }
 
 export function toUpdateVenuePayload(data: VenueFormInput): UpdateVenueInput {
+  const { deal, rentAmount, revenue, ...rest } = data;
   return updateVenueSchema.parse({
-    ...data,
+    ...rest,
     address: data.address?.trim() || null,
     notes: data.notes?.trim() || null,
     decisionMakerName: data.decisionMakerName?.trim() || null,
@@ -355,8 +427,7 @@ export function toUpdateVenuePayload(data: VenueFormInput): UpdateVenueInput {
     decisionMakerPhone: data.decisionMakerPhone?.trim() || null,
     nextAction: data.nextAction?.trim() || null,
     nextActionDate: data.nextActionDate || null,
-    cutPercentage: parseNonNegativeNumber(data.cutPercentage),
-    grossRevenue: parseNonNegativeNumber(data.grossRevenue),
+    ...compensationFromDeal(data),
     cityId: data.cityId,
     eventsPerMonth: parseOptionalPositiveInt(data.eventsPerMonth) ?? null,
     approximateAttendance: parseOptionalPositiveInt(data.approximateAttendance) ?? null,
@@ -365,8 +436,10 @@ export function toUpdateVenuePayload(data: VenueFormInput): UpdateVenueInput {
 
 /** Normalize form values before API submission */
 export function toCreateLocationPayload(data: LocationFormInput): CreateLocationInput {
+  const { deal, rentAmount, revenue, ...rest } = data;
   return createLocationSchema.parse({
-    ...data,
+    ...rest,
+    ...compensationFromDeal({ deal, rentAmount, revenue }),
     address: data.address?.trim() || undefined,
     notes: data.notes?.trim() || undefined,
     assignedRepId: data.assignedRepId || undefined,
@@ -379,8 +452,10 @@ export function toCreateLocationPayload(data: LocationFormInput): CreateLocation
 }
 
 export function toUpdateLocationPayload(data: LocationFormInput): UpdateLocationInput {
+  const { deal, rentAmount, revenue, ...rest } = data;
   return updateLocationSchema.parse({
-    ...data,
+    ...rest,
+    ...compensationFromDeal({ deal, rentAmount, revenue }),
     address: data.address?.trim() || null,
     notes: data.notes?.trim() || null,
     assignedRepId: data.assignedRepId ?? null,

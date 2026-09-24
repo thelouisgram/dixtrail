@@ -66,7 +66,7 @@ export function LoginForm() {
     <Card className="w-full max-w-md animate-fade-in-up">
       <CardHeader className="items-center space-y-4 text-center">
         <Logo href="/" size="lg" />
-        <CardDescription>Sign in to your account</CardDescription>
+        <CardDescription>Sign in to Luxe Dispense CRM</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

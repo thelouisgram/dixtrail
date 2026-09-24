@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
+import { CompensationFields, dealFromRecord } from "@/components/compensation-fields";
 
 function toCityOptions(cities: City[]): SearchableSelectOption[] {
   return cities.map((city) => ({
@@ -85,6 +86,7 @@ function buildDefaults(editLocation?: Location | null): LocationFormInput {
     contactPhone: editLocation?.contactPhone ?? "",
     reachedOutDate: editLocation?.reachedOutDate?.split("T")[0] ?? undefined,
     followUpDate: editLocation?.followUpDate?.split("T")[0] ?? undefined,
+    ...dealFromRecord(editLocation),
     notes: editLocation?.notes ?? undefined,
   };
 }
@@ -114,6 +116,9 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
   const countryId = watch("countryId");
   const stateId = watch("stateId");
   const status = watch("status");
+  const deal = watch("deal");
+  const rentAmount = watch("rentAmount");
+  const revenue = watch("revenue");
   const contactModes = watch("contactModes") ?? [];
   const { data: states = [] } = useStates(countryId || undefined);
   const [citySearch, setCitySearch] = useState("");
@@ -519,6 +524,15 @@ function LocationFormContent({ userRole, editLocation, onClose }: LocationFormCo
             <Label>Reached Out Date</Label>
             <Input type="date" {...register("reachedOutDate")} />
           </div>
+
+          <CompensationFields
+            register={register}
+            control={control}
+            deal={deal}
+            rentAmount={rentAmount}
+            revenue={revenue}
+            errors={errors}
+          />
 
           <div className="space-y-2">
             <Label>Notes</Label>

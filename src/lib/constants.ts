@@ -5,9 +5,10 @@ import {
   VenueType,
   SixClubsRelationship,
   VendingPlacementStatus,
+  CompensationType,
 } from "@prisma/client";
 
-export const APP_NAME = "Dixtrail";
+export const APP_NAME = "Luxe Dispense CRM";
 
 export const LOCATION_STATUSES = Object.values(LocationStatus);
 
@@ -94,6 +95,11 @@ export const VENDING_PLACEMENT_STATUS_LABELS: Record<VendingPlacementStatus, str
   INSTALLED: "Installed",
   DECLINED: "Declined",
   ON_HOLD: "On Hold",
+};
+
+export const COMPENSATION_LABELS: Record<CompensationType, string> = {
+  RENT: "Rent",
+  PROFIT: "Profit share",
 };
 
 export const VENDING_PLACEMENT_STATUS_COLORS: Record<VendingPlacementStatus, string> = {

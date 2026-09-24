@@ -51,7 +51,7 @@ export function ShimmerBar({ className }: { className?: string }) {
       )}
       aria-hidden
     >
-      <span className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/70 to-transparent" />
+      <span className="absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/15 to-transparent" />
     </span>
   );
 }
@@ -124,7 +124,7 @@ export function RecentActivityPlaceholder() {
           <Skeleton className="h-6 w-20 rounded-full" />
         </div>
       ))}
-      <LoadingHint>Picking up the latest trail markers…</LoadingHint>
+      <LoadingHint>Picking up the latest updates…</LoadingHint>
     </div>
   );
 }

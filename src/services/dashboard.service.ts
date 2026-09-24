@@ -9,8 +9,6 @@ import {
   seesOnlyOwnVenues,
   type AccessUser,
 } from "@/lib/access";
-import { computeTheirCut } from "@/lib/money";
-
 function serializeLocation<T extends {
   reachedOutDate?: Date | null;
   followUpDate?: Date | null;
@@ -85,35 +83,27 @@ export async function getDashboardStats(viewer: AccessUser): Promise<DashboardDa
     : [0, 0, 0];
 
   const venueWhere = seesOnlyOwnVenues(viewer) ? { createdById: viewer.id } : {};
-  const venueRows = showVenues
-    ? await prisma.venue.findMany({
-        where: venueWhere,
-        select: {
-          id: true,
-          name: true,
-          cutPercentage: true,
-          grossRevenue: true,
-          theirCut: true,
-          city: { select: { name: true } },
-        },
-        orderBy: { updatedAt: "desc" },
-      })
-    : [];
+  const [venueCount, recentVenueRows] = showVenues
+    ? await Promise.all([
+        prisma.venue.count({ where: venueWhere }),
+        prisma.venue.findMany({
+          where: venueWhere,
+          select: {
+            id: true,
+            name: true,
+            city: { select: { name: true } },
+          },
+          orderBy: { updatedAt: "desc" },
+          take: 5,
+        }),
+      ])
+    : [0, [] as { id: string; name: string; city: { name: string } | null }[]];
 
-  const recentVenues: DashboardVenue[] = venueRows.slice(0, 5).map((venue) => ({
+  const recentVenues: DashboardVenue[] = recentVenueRows.map((venue) => ({
     id: venue.id,
     name: venue.name,
     cityName: venue.city?.name ?? null,
-    cutPercentage: venue.cutPercentage ?? 0,
-    grossRevenue: venue.grossRevenue ?? 0,
-    theirCut: computeTheirCut(venue.grossRevenue ?? 0, venue.cutPercentage ?? 0),
   }));
-
-  const totalGrossRevenue = venueRows.reduce((sum, venue) => sum + (venue.grossRevenue ?? 0), 0);
-  const totalTheirCut = venueRows.reduce(
-    (sum, venue) => sum + computeTheirCut(venue.grossRevenue ?? 0, venue.cutPercentage ?? 0),
-    0
-  );
 
   return {
     view,
@@ -126,9 +116,7 @@ export async function getDashboardStats(viewer: AccessUser): Promise<DashboardDa
     totalUsers,
     totalCountries,
     totalStates,
-    totalVenues: venueRows.length,
-    totalGrossRevenue,
-    totalTheirCut,
+    totalVenues: typeof venueCount === "number" ? venueCount : 0,
     recentVenues,
   };
 }

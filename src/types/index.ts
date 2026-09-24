@@ -7,6 +7,7 @@ import {
   VenueType,
   SixClubsRelationship,
   VendingPlacementStatus,
+  CompensationType,
 } from "@prisma/client";
 
 export type UserRow = {
@@ -81,6 +82,11 @@ export type Location = {
   contactPhone?: string | null;
   reachedOutDate?: string | null;
   followUpDate?: string | null;
+  compensationType?: CompensationType;
+  profitPercent?: number | null;
+  rentAmount?: number;
+  revenue?: number;
+  locationShare?: number;
   notes?: string | null;
   normalizedEventName?: string;
   createdAt?: string;
@@ -134,9 +140,6 @@ export type DashboardVenue = {
   id: string;
   name: string;
   cityName: string | null;
-  cutPercentage: number;
-  grossRevenue: number;
-  theirCut: number;
 };
 
 export type DashboardData = {
@@ -149,8 +152,6 @@ export type DashboardData = {
   totalCountries: number;
   totalStates: number;
   totalVenues: number;
-  totalGrossRevenue: number;
-  totalTheirCut: number;
   recentVenues: DashboardVenue[];
 };
 
@@ -190,9 +191,12 @@ export type Venue = {
   vendingPlacementStatus: VendingPlacementStatus;
   nextAction?: string | null;
   nextActionDate?: string | null;
-  cutPercentage: number;
-  grossRevenue: number;
-  theirCut: number;
+  compensationType?: CompensationType;
+  profitPercent?: number | null;
+  rentAmount?: number;
+  revenue?: number;
+  locationShare?: number;
+  sixClubCommission?: number;
   createdById?: string;
   createdBy?: { id: string; name: string | null; email?: string } | null;
   notes?: string | null;

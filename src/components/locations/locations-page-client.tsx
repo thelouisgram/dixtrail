@@ -53,6 +53,7 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { cn } from "@/lib/utils";
+import { formatDeal, formatMoney } from "@/lib/money";
 
 import type { City, Location } from "@/types";
 
@@ -505,6 +506,9 @@ export function LocationsPageClient({ userRole, isIndependent = false }: Locatio
                     <th className="px-4 py-3 text-left font-medium">Status</th>
                     <th className="px-4 py-3 text-left font-medium">Contact</th>
                     <th className="px-4 py-3 text-left font-medium">Assigned Rep</th>
+                    <th className="px-4 py-3 text-left font-medium">Deal</th>
+                    <th className="px-4 py-3 text-left font-medium">Revenue</th>
+                    <th className="px-4 py-3 text-left font-medium">Share</th>
                     <th className="px-4 py-3 text-right font-medium w-15">Actions</th>
                   </tr>
                 </thead>
@@ -530,6 +534,9 @@ export function LocationsPageClient({ userRole, isIndependent = false }: Locatio
                     <th className="px-4 py-3 text-left font-medium">Status</th>
                     <th className="px-4 py-3 text-left font-medium">Contact</th>
                     <th className="px-4 py-3 text-left font-medium">Assigned Rep</th>
+                    <th className="px-4 py-3 text-left font-medium">Deal</th>
+                    <th className="px-4 py-3 text-left font-medium">Revenue</th>
+                    <th className="px-4 py-3 text-left font-medium">Share</th>
                     <th className="px-4 py-3 text-right font-medium w-15">Actions</th>
                   </tr>
                 </thead>
@@ -585,6 +592,11 @@ export function LocationsPageClient({ userRole, isIndependent = false }: Locatio
                         {formatContactModes(loc.contactModes, loc.contactEmail, loc.contactPhone)}
                       </td>
                       <td className="px-4 py-3">{loc.assignedRep?.name ?? "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {formatDeal(loc.compensationType, loc.profitPercent)}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums">{formatMoney(loc.revenue)}</td>
+                      <td className="px-4 py-3 tabular-nums font-medium">{formatMoney(loc.locationShare)}</td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end">
                           <DropdownMenu>

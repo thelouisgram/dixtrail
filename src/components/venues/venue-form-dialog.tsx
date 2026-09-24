@@ -12,7 +12,7 @@ import {
 import { useCreateVenue, useSearchVenues, useUpdateVenue } from "@/hooks/use-venues";
 import { useCountries, useStates, useSearchCities } from "@/hooks/use-countries";
 import { useUIStore } from "@/stores/ui-store";
-import { computeTheirCut, formatMoney } from "@/lib/money";
+import { CompensationFields, dealFromRecord } from "@/components/compensation-fields";
 import {
   VENUE_TYPE_LABELS,
   SIXCLUBS_RELATIONSHIP_LABELS,
@@ -89,8 +89,7 @@ function buildDefaults(editVenue?: Venue | null): VenueFormInput {
       editVenue?.vendingPlacementStatus ?? VendingPlacementStatus.NOT_CONTACTED,
     nextAction: editVenue?.nextAction ?? "",
     nextActionDate: editVenue?.nextActionDate?.split("T")[0] ?? undefined,
-    cutPercentage: editVenue?.cutPercentage?.toString() ?? "0",
-    grossRevenue: editVenue?.grossRevenue?.toString() ?? "0",
+    ...dealFromRecord(editVenue),
     notes: editVenue?.notes ?? undefined,
   };
 }
@@ -174,9 +173,9 @@ function VenueFormContent({ editVenue, onClose }: VenueFormContentProps) {
     }
   }
 
-  const cutPercentageValue = Number(watch("cutPercentage")) || 0;
-  const grossRevenueValue = Number(watch("grossRevenue")) || 0;
-  const theirCut = computeTheirCut(grossRevenueValue, cutPercentageValue);
+  const deal = watch("deal");
+  const rentAmount = watch("rentAmount");
+  const revenue = watch("revenue");
 
   async function onSubmit(data: VenueFormInput) {
     try {
@@ -496,41 +495,15 @@ function VenueFormContent({ editVenue, onClose }: VenueFormContentProps) {
             </div>
           </div>
 
-          <div className="space-y-4 rounded-md border p-4">
-            <p className="text-sm font-medium">6ixClubs revenue share</p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="cutPercentage">Percentage they take</Label>
-                <Input
-                  id="cutPercentage"
-                  type="number"
-                  min={0}
-                  max={100}
-                  step="0.01"
-                  {...register("cutPercentage")}
-                />
-                {errors.cutPercentage && (
-                  <p className="text-sm text-destructive">{errors.cutPercentage.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="grossRevenue">Gross revenue</Label>
-                <Input
-                  id="grossRevenue"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  {...register("grossRevenue")}
-                />
-                {errors.grossRevenue && (
-                  <p className="text-sm text-destructive">{errors.grossRevenue.message}</p>
-                )}
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Their cut: <span className="font-medium text-foreground">{formatMoney(theirCut)}</span>
-            </p>
-          </div>
+          <CompensationFields
+            register={register}
+            control={control}
+            deal={deal}
+            rentAmount={rentAmount}
+            revenue={revenue}
+            errors={errors}
+            showSixClubCommission
+          />
 
           <div className="space-y-2">
             <Label>Notes</Label>

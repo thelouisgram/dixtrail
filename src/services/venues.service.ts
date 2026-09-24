@@ -12,7 +12,7 @@ import {
   seesOnlyOwnVenues,
   type AccessUser,
 } from "@/lib/access";
-import { computeTheirCut } from "@/lib/money";
+import { compensationAmounts } from "@/lib/money";
 
 const venueInclude = {
   country: true,
@@ -136,8 +136,7 @@ export async function createVenue(data: CreateVenueInput, viewer: AccessUser) {
     throw new Error("A venue with this name already exists");
   }
 
-  const cutPercentage = data.cutPercentage ?? 0;
-  const grossRevenue = data.grossRevenue ?? 0;
+  const compensation = compensationAmounts(data);
 
   return prisma.venue.create({
     data: {
@@ -158,9 +157,12 @@ export async function createVenue(data: CreateVenueInput, viewer: AccessUser) {
         data.vendingPlacementStatus ?? VendingPlacementStatus.NOT_CONTACTED,
       nextAction: data.nextAction ?? null,
       nextActionDate: data.nextActionDate ? parseDateInput(data.nextActionDate) : null,
-      cutPercentage,
-      grossRevenue,
-      theirCut: computeTheirCut(grossRevenue, cutPercentage),
+      compensationType: compensation.compensationType,
+      profitPercent: compensation.profitPercent,
+      rentAmount: compensation.rentAmount,
+      revenue: compensation.revenue,
+      locationShare: compensation.locationShare,
+      sixClubCommission: compensation.sixClubCommission,
       createdById: viewer.id,
       notes: data.notes ?? null,
     },
@@ -233,12 +235,24 @@ export async function updateVenue(
   }
   if (data.notes !== undefined) updateData.notes = data.notes;
 
-  if (data.cutPercentage !== undefined || data.grossRevenue !== undefined) {
-    const cutPercentage = data.cutPercentage ?? venue.cutPercentage ?? 0;
-    const grossRevenue = data.grossRevenue ?? venue.grossRevenue ?? 0;
-    updateData.cutPercentage = cutPercentage;
-    updateData.grossRevenue = grossRevenue;
-    updateData.theirCut = computeTheirCut(grossRevenue, cutPercentage);
+  if (
+    data.compensationType !== undefined ||
+    data.profitPercent !== undefined ||
+    data.rentAmount !== undefined ||
+    data.revenue !== undefined
+  ) {
+    const compensation = compensationAmounts({
+      compensationType: data.compensationType ?? venue.compensationType,
+      profitPercent: data.profitPercent !== undefined ? data.profitPercent : venue.profitPercent,
+      rentAmount: data.rentAmount !== undefined ? data.rentAmount : venue.rentAmount,
+      revenue: data.revenue !== undefined ? data.revenue : venue.revenue,
+    });
+    updateData.compensationType = compensation.compensationType;
+    updateData.profitPercent = compensation.profitPercent;
+    updateData.rentAmount = compensation.rentAmount;
+    updateData.revenue = compensation.revenue;
+    updateData.locationShare = compensation.locationShare;
+    updateData.sixClubCommission = compensation.sixClubCommission;
   }
 
   return prisma.venue.update({

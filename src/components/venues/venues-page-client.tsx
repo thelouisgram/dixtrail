@@ -15,7 +15,7 @@ import {
 } from "@/hooks/use-venues";
 import { useCountries, useStates, useSearchCities, useCity } from "@/hooks/use-countries";
 import { useUIStore } from "@/stores/ui-store";
-import { formatMoney, formatPercent } from "@/lib/money";
+import { formatDeal, formatMoney } from "@/lib/money";
 import {
   VENUE_TYPE_LABELS,
   SIXCLUBS_RELATIONSHIP_LABELS,
@@ -451,9 +451,10 @@ export function VenuesPageClient({ userRole }: VenuesPageClientProps) {
                       <th className="px-4 py-3 text-left font-medium">6ixClubs</th>
                       <th className="px-4 py-3 text-left font-medium">Placement</th>
                       <th className="px-4 py-3 text-left font-medium">Next Action</th>
-                      <th className="px-4 py-3 text-left font-medium">Cut %</th>
-                      <th className="px-4 py-3 text-left font-medium">Gross</th>
-                      <th className="px-4 py-3 text-left font-medium">Their cut</th>
+                      <th className="px-4 py-3 text-left font-medium">Deal</th>
+                      <th className="px-4 py-3 text-left font-medium">Revenue</th>
+                      <th className="px-4 py-3 text-left font-medium">Share</th>
+                      <th className="px-4 py-3 text-left font-medium">6ixClubs 5%</th>
                       <th className="px-4 py-3 text-right font-medium w-15">Actions</th>
                     </tr>
                   </thead>
@@ -480,9 +481,10 @@ export function VenuesPageClient({ userRole }: VenuesPageClientProps) {
                       <th className="px-4 py-3 text-left font-medium">6ixClubs</th>
                       <th className="px-4 py-3 text-left font-medium">Placement</th>
                       <th className="px-4 py-3 text-left font-medium">Next Action</th>
-                      <th className="px-4 py-3 text-left font-medium">Cut %</th>
-                      <th className="px-4 py-3 text-left font-medium">Gross</th>
-                      <th className="px-4 py-3 text-left font-medium">Their cut</th>
+                      <th className="px-4 py-3 text-left font-medium">Deal</th>
+                      <th className="px-4 py-3 text-left font-medium">Revenue</th>
+                      <th className="px-4 py-3 text-left font-medium">Share</th>
+                      <th className="px-4 py-3 text-left font-medium">6ixClubs 5%</th>
                       <th className="px-4 py-3 text-right font-medium w-15">Actions</th>
                     </tr>
                   </thead>
@@ -559,9 +561,12 @@ export function VenuesPageClient({ userRole }: VenuesPageClientProps) {
                             "—"
                           )}
                         </td>
-                        <td className="px-4 py-3 tabular-nums">{formatPercent(venue.cutPercentage)}</td>
-                        <td className="px-4 py-3 tabular-nums">{formatMoney(venue.grossRevenue)}</td>
-                        <td className="px-4 py-3 tabular-nums font-medium">{formatMoney(venue.theirCut)}</td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {formatDeal(venue.compensationType, venue.profitPercent)}
+                        </td>
+                        <td className="px-4 py-3 tabular-nums">{formatMoney(venue.revenue)}</td>
+                        <td className="px-4 py-3 tabular-nums font-medium">{formatMoney(venue.locationShare)}</td>
+                        <td className="px-4 py-3 tabular-nums">{formatMoney(venue.sixClubCommission)}</td>
                         <td className="px-4 py-3">
                           <div className="flex justify-end">
                             <DropdownMenu>
